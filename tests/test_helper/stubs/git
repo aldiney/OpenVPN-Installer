@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# Stub do 'git' para os testes. Registra os argumentos; não age no sistema.
+printf '%s\n' "$*" >> "${STUB_CALLS_DIR:?STUB_CALLS_DIR não definido}/git"
+exit "${STUB_GIT_EXIT:-0}"

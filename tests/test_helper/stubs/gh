@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# Stub do 'gh' para os testes. Registra os argumentos. 'gh auth status' retorna
+# STUB_GH_AUTH_STATUS_EXIT (0 = autenticado por padrão).
+
+printf '%s\n' "$*" >> "${STUB_CALLS_DIR:?STUB_CALLS_DIR não definido}/gh"
+if [[ "${1:-} ${2:-}" == "auth status" ]]; then
+    exit "${STUB_GH_AUTH_STATUS_EXIT:-0}"
+fi
+exit "${STUB_GH_EXIT:-0}"
