@@ -1,0 +1,12 @@
+# Configuração do ShellCheck para este projeto.
+# Os scripts têm como alvo o bash (não sh POSIX).
+shell=bash
+
+# Habilita verificações opcionais úteis para manter o código limpo.
+enable=quote-safe-variables
+enable=require-variable-braces
+enable=deprecate-which
+
+# Arquivos sob lib/ são "sourced" (não executados direto); isso evita falsos
+# positivos de variáveis "não usadas" definidas em um módulo e usadas em outro.
+external-sources=true

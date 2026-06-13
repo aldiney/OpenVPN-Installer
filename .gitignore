@@ -1,0 +1,22 @@
+# Artefatos temporários e de teste
+*.tmp
+*.swp
+*.bak
+*~
+.DS_Store
+
+# Saídas geradas em tempo de execução (NUNCA versionar)
+# Perfis de cliente, chaves e configs vão para /etc/openvpn e o home do operador,
+# nunca para dentro do repositório.
+*.ovpn
+*.rsc
+*.key
+*.crt
+*.pem
+pki/
+clients/
+
+# Dependências de teste vendorizadas (instaladas via submódulo ou CI)
+tests/test_helper/bats-support/
+tests/test_helper/bats-assert/
+tests/test_helper/bats-core/

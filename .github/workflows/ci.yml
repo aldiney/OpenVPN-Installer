@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  shellcheck:
+    name: ShellCheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Instalar ShellCheck
+        run: sudo apt-get update -qq && sudo apt-get install -y shellcheck
+
+      - name: Rodar ShellCheck nos scripts
+        run: |
+          # Verifica todos os scripts shell do projeto (ignora dependências de teste).
+          mapfile -t files < <(find . -type f -name '*.sh' \
+            -not -path './tests/test_helper/bats-*/*' | sort)
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "Nenhum script .sh encontrado ainda — nada a verificar."
+            exit 0
+          fi
+          printf 'Verificando %d arquivo(s):\n' "${#files[@]}"
+          printf '  %s\n' "${files[@]}"
+          shellcheck "${files[@]}"
+
+  bats:
+    name: Testes (bats-core)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Instalar bats-core
+        run: sudo apt-get update -qq && sudo apt-get install -y bats
+
+      - name: Rodar testes
+        run: |
+          mapfile -t tests < <(find tests -type f -name '*.bats' 2>/dev/null | sort)
+          if [ ${#tests[@]} -eq 0 ]; then
+            echo "Nenhum teste .bats encontrado ainda — nada a rodar."
+            exit 0
+          fi
+          bats -r tests/
