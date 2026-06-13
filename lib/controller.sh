@@ -3,10 +3,28 @@
 # A lógica mora nos módulos; aqui só sequenciamos as chamadas.
 # Espera que todos os módulos de domínio já estejam carregados (ver install.sh).
 
-# Instala o hub single-server: PKI, certificados, tls-crypt, config e serviço.
+# Pacotes necessários para o hub funcionar.
+ovpn_action_check_deps() {
+    ovpn_deps_ensure openvpn qrencode
+}
+
+# Garante que OVPN_REMOTE_HOST esteja definido; pergunta se ainda é o placeholder.
+_ovpn_ensure_remote_host() {
+    if [[ -z "${OVPN_REMOTE_HOST:-}" \
+        || "${OVPN_REMOTE_HOST}" == "${OVPN_REMOTE_HOST_PLACEHOLDER:-}" ]]; then
+        local host
+        read -r -p "IP público ou domínio deste hub (para o 'remote' do cliente): " host \
+            || return 1
+        export OVPN_REMOTE_HOST="${host}"
+    fi
+}
+
+# Instala o hub single-server: dependências, PKI, certificados, tls-crypt,
+# configuração e serviço.
 ovpn_action_install_hub() {
     local mode="${1:-ipv4}"
     ovpn_log_step "Instalando o hub OpenVPN (modo ${mode})..."
+    ovpn_action_check_deps || return 1
     ovpn_pki_build_ca
     ovpn_pki_issue_server "${OVPN_SERVER_NAME}"
     ovpn_pki_gen_tls_crypt
@@ -23,6 +41,7 @@ ovpn_action_add_client() {
         ovpn_log_warn "Nome do cliente vazio."
         return 1
     fi
+    _ovpn_ensure_remote_host || return 1
     ovpn_client_create "${name}"
     ovpn_client_qr "${name}"
 }
@@ -48,6 +67,7 @@ ovpn_action_add_mikrotik() {
         ovpn_log_warn "Nome do cliente vazio."
         return 1
     fi
+    _ovpn_ensure_remote_host || return 1
     ovpn_mikrotik_create "${name}"
 }
 
@@ -91,7 +111,8 @@ ovpn_menu_main() {
             "Desativar saída para a internet" \
             "Adicionar cliente MikroTik" \
             "Revogar cliente" \
-            "Desinstalar o hub"
+            "Desinstalar o hub" \
+            "Verificar/instalar dependências"
         printf '0. Sair\n'
         read -r -p "Escolha uma opção: " choice || return 0
         case "${choice}" in
@@ -113,6 +134,7 @@ ovpn_menu_main() {
                 ;;
             8) ovpn_action_revoke_client ;;
             9) ovpn_action_uninstall ;;
+            10) ovpn_action_check_deps ;;
             0) return 0 ;;
             *) ovpn_log_warn "Opção inválida." ;;
         esac

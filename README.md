@@ -65,6 +65,10 @@ ativa saída para internet, etc.
 sudo ./install.sh
 ```
 
+📖 Passo a passo completo (servidor e clientes Linux/Windows/macOS/Android/MikroTik):
+[docs/howto.md](docs/howto.md). Para validar em um host de teste:
+[docs/validacao-hitl.md](docs/validacao-hitl.md).
+
 ## Segurança
 
 Este projeto adota regras explícitas de segurança:
