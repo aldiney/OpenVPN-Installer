@@ -104,6 +104,14 @@ setup() {
     [ -f "${OVPN_PKI_DIR}/issued/server.crt" ]
 }
 
+@test "ovpn_pki_revoke_client: registra a revogação e atualiza a CRL" {
+    _ovpn_pki_gen_crl() { printf 'CRL\n' > "$(ovpn_pki_crl_path)"; }
+    run ovpn_pki_revoke_client alice
+    [ "$status" -eq 0 ]
+    [ -f "$(ovpn_pki_crl_path)" ]
+    grep -q alice "${OVPN_PKI_DIR}/revoked.index"
+}
+
 @test "ovpn_pki_export_ca/import_ca: round-trip preserva a identidade da CA" {
     _ovpn_pki_gen_ca_key()        { printf 'K\n' > "$1"; }
     _ovpn_pki_gen_ca_cert()       { printf 'CA-IDENTIDADE-XYZ\n' > "$2"; }

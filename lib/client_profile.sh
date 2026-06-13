@@ -71,6 +71,21 @@ ovpn_client_qr() {
     fi
 }
 
+# Revoga o acesso de um cliente: revoga o certificado (CRL), libera o IP fixo e
+# remove o perfil gerado (e a cópia no home).
+ovpn_client_revoke() {
+    local name="$1"
+    if [[ -z "${name}" ]]; then
+        ovpn_log_warn "Nome do cliente vazio."
+        return 1
+    fi
+    ovpn_pki_revoke_client "${name}"
+    rm -f "$(ovpn_ccd_dir)/${name}"
+    rm -f "$(ovpn_client_profile_path "${name}")"
+    rm -f "${OVPN_HOME_DIR}/${name}.ovpn"
+    ovpn_log_ok "Acesso de ${name} revogado e perfil removido."
+}
+
 # Lista os clientes cadastrados e seus IPs fixos.
 ovpn_client_list() {
     local dir f name ip

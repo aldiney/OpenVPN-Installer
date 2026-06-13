@@ -81,3 +81,12 @@ setup() {
     run ovpn_action_add_client ""
     [ "$status" -ne 0 ]
 }
+
+@test "ovpn_client_revoke: remove o ccd e o perfil do cliente" {
+    ovpn_client_create alice
+    [ -f "${OVPN_CLIENTS_DIR}/alice.ovpn" ]
+    ovpn_client_revoke alice
+    [ ! -f "${OVPN_SERVER_DIR}/ccd/alice" ]
+    [ ! -f "${OVPN_CLIENTS_DIR}/alice.ovpn" ]
+    [ ! -f "${OVPN_HOME_DIR}/alice.ovpn" ]
+}
