@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# Stub do 'systemctl' para os testes. Registra os argumentos e não age no
+# sistema. Para simular falha, defina STUB_SYSTEMCTL_EXIT=<código>.
+
+printf '%s\n' "$*" >> "${STUB_CALLS_DIR:?STUB_CALLS_DIR não definido}/systemctl"
+exit "${STUB_SYSTEMCTL_EXIT:-0}"

@@ -1,0 +1,34 @@
+#!/usr/bin/env bats
+
+bats_require_minimum_version 1.5.0
+
+load ../test_helper/common
+
+setup() {
+    common_setup
+    load_lib core
+    load_lib log
+    load_lib pki
+    load_lib wizard_ipproto
+    load_lib server_config
+}
+
+@test "ovpn_server_render: gera o server.conf com as diretivas essenciais" {
+    ovpn_server_render ipv4
+    conf="${OVPN_SERVER_DIR}/server.conf"
+    [ -f "${conf}" ]
+    grep -q "^dev tun$" "${conf}"
+    grep -q "^topology subnet$" "${conf}"
+    grep -q "^client-to-client$" "${conf}"
+    grep -q "^tls-crypt " "${conf}"
+    grep -q "^data-ciphers AES-256-GCM:AES-128-GCM$" "${conf}"
+    grep -q "^client-config-dir " "${conf}"
+}
+
+@test "ovpn_server_enable: habilita e inicia o serviço via systemd" {
+    run ovpn_server_enable
+    [ "$status" -eq 0 ]
+    run stub_calls systemctl
+    [[ "$output" == *"enable"* ]]
+    [[ "$output" == *"openvpn-server@server"* ]]
+}
