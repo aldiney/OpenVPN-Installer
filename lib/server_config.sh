@@ -38,6 +38,19 @@ ovpn_server_render() {
     } > "$(ovpn_server_conf_path)"
 }
 
+# Habilita o encaminhamento de pacotes necessário para o modo escolhido.
+# IPv6 (modos ipv6/dual) precisa de net.ipv6.conf.all.forwarding=1 para rotear
+# além do tun. O encaminhamento IPv4 fica a cargo do módulo gateway (quando o
+# operador ativa a saída para a internet), pois o client-to-client não o exige.
+ovpn_server_apply_forwarding() {
+    local mode="${1:-ipv4}"
+    case "${mode}" in
+        ipv6|dual)
+            sysctl -w net.ipv6.conf.all.forwarding=1
+            ;;
+    esac
+}
+
 # Habilita e inicia o serviço do servidor via systemd.
 ovpn_server_enable() {
     systemctl enable --now "openvpn-server@${OVPN_SERVER_NAME}"

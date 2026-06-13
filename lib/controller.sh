@@ -11,6 +11,7 @@ ovpn_action_install_hub() {
     ovpn_pki_issue_server "${OVPN_SERVER_NAME}"
     ovpn_pki_gen_tls_crypt
     ovpn_server_render "${mode}"
+    ovpn_server_apply_forwarding "${mode}"
     ovpn_server_enable
     ovpn_log_ok "Hub instalado. Configuração em $(ovpn_server_conf_path)."
 }
@@ -33,7 +34,7 @@ ovpn_action_status() {
 
 # Laço principal do menu interativo.
 ovpn_menu_main() {
-    local choice name
+    local choice name mode
     while true; do
         ovpn_ui_banner
         ovpn_ui_menu "Menu Principal" \
@@ -44,7 +45,10 @@ ovpn_menu_main() {
         printf '0. Sair\n'
         read -r -p "Escolha uma opção: " choice || return 0
         case "${choice}" in
-            1) ovpn_action_install_hub ipv4 ;;
+            1)
+                mode="$(ovpn_wizard_choose_mode)"
+                ovpn_action_install_hub "${mode}"
+                ;;
             2)
                 read -r -p "Nome do cliente: " name || continue
                 ovpn_action_add_client "${name}"

@@ -32,3 +32,17 @@ setup() {
     [[ "$output" == *"enable"* ]]
     [[ "$output" == *"openvpn-server@server"* ]]
 }
+
+@test "ovpn_server_apply_forwarding: habilita encaminhamento IPv6 no modo dual" {
+    run ovpn_server_apply_forwarding dual
+    [ "$status" -eq 0 ]
+    run stub_calls sysctl
+    [[ "$output" == *"net.ipv6.conf.all.forwarding=1"* ]]
+}
+
+@test "ovpn_server_apply_forwarding: modo ipv4 não mexe no encaminhamento IPv6" {
+    run ovpn_server_apply_forwarding ipv4
+    [ "$status" -eq 0 ]
+    run stub_calls sysctl
+    [ -z "$output" ]
+}
