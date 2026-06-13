@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# Stub do 'openssl' para os testes.
+# Registra os argumentos e cria o arquivo indicado por '-out <arquivo>'
+# (com conteúdo fixo), para que a lógica que depende do arquivo prossiga.
+# Não faz criptografia real.
+
+printf '%s\n' "$*" >> "${STUB_CALLS_DIR:?STUB_CALLS_DIR não definido}/openssl"
+
+prev=""
+for arg in "$@"; do
+    if [[ "${prev}" == "-out" ]]; then
+        printf 'STUB-OPENSSL-%s\n' "${arg##*/}" > "${arg}"
+    fi
+    prev="${arg}"
+done
+
+exit "${STUB_OPENSSL_EXIT:-0}"
