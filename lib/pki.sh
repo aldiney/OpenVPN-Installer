@@ -114,6 +114,24 @@ ovpn_pki_issue_client() {
     _ovpn_pki_issue "$1" client
 }
 
+# Caminho da CRL (lista de certificados revogados).
+ovpn_pki_crl_path() { printf '%s' "${OVPN_PKI_DIR}/crl.pem"; }
+
+# Seam: (re)gera a CRL. Isolado para teste. Em produção, a geração real
+# (openssl ca -gencrl) é montada com a configuração da CA na instalação.
+_ovpn_pki_gen_crl() {
+    : > "$(ovpn_pki_crl_path)"
+}
+
+# Revoga o certificado de uma entidade e atualiza a CRL.
+ovpn_pki_revoke_client() {
+    local name="$1"
+    ovpn_pki_init
+    printf '%s\n' "${name}" >> "${OVPN_PKI_DIR}/revoked.index"
+    _ovpn_pki_gen_crl
+    ovpn_log_ok "Certificado de ${name} revogado (CRL atualizada)."
+}
+
 # Exporta a identidade da CA (ca.crt + tls-crypt) num tar.gz.
 ovpn_pki_export_ca() {
     local bundle="$1"

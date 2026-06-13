@@ -51,9 +51,30 @@ ovpn_action_add_mikrotik() {
     ovpn_mikrotik_create "${name}"
 }
 
-# Mostra o status do servidor.
+# Revoga o acesso de um cliente.
+ovpn_action_revoke_client() {
+    local name
+    read -r -p "Nome do cliente a revogar: " name || return 1
+    ovpn_client_revoke "${name}"
+}
+
+# Desinstala o hub, perguntando se a PKI deve ser preservada.
+ovpn_action_uninstall() {
+    if ! ovpn_ui_confirm "Tem certeza que deseja desinstalar o hub?"; then
+        return 0
+    fi
+    local pki_mode="keep"
+    if ovpn_ui_confirm "Remover também a PKI (certificados)?"; then
+        pki_mode="purge"
+    fi
+    ovpn_uninstall "${pki_mode}"
+}
+
+# Mostra o status do servidor e os clientes cadastrados.
 ovpn_action_status() {
     ovpn_server_status || ovpn_log_warn "Servidor não está ativo."
+    printf 'Clientes:\n'
+    ovpn_client_list
 }
 
 # Laço principal do menu interativo.
@@ -68,7 +89,9 @@ ovpn_menu_main() {
             "Status do servidor" \
             "Ativar saída para a internet" \
             "Desativar saída para a internet" \
-            "Adicionar cliente MikroTik"
+            "Adicionar cliente MikroTik" \
+            "Revogar cliente" \
+            "Desinstalar o hub"
         printf '0. Sair\n'
         read -r -p "Escolha uma opção: " choice || return 0
         case "${choice}" in
@@ -88,6 +111,8 @@ ovpn_menu_main() {
                 read -r -p "Nome do cliente MikroTik: " name || continue
                 ovpn_action_add_mikrotik "${name}"
                 ;;
+            8) ovpn_action_revoke_client ;;
+            9) ovpn_action_uninstall ;;
             0) return 0 ;;
             *) ovpn_log_warn "Opção inválida." ;;
         esac
