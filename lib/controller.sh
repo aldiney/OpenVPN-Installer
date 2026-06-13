@@ -41,6 +41,16 @@ ovpn_action_gateway_disable() {
     ovpn_gateway_disable "${wan}"
 }
 
+# Adiciona um cliente MikroTik (perfil .ovpn compatível + script .rsc).
+ovpn_action_add_mikrotik() {
+    local name="$1"
+    if [[ -z "${name}" ]]; then
+        ovpn_log_warn "Nome do cliente vazio."
+        return 1
+    fi
+    ovpn_mikrotik_create "${name}"
+}
+
 # Mostra o status do servidor.
 ovpn_action_status() {
     ovpn_server_status || ovpn_log_warn "Servidor não está ativo."
@@ -57,7 +67,8 @@ ovpn_menu_main() {
             "Listar clientes" \
             "Status do servidor" \
             "Ativar saída para a internet" \
-            "Desativar saída para a internet"
+            "Desativar saída para a internet" \
+            "Adicionar cliente MikroTik"
         printf '0. Sair\n'
         read -r -p "Escolha uma opção: " choice || return 0
         case "${choice}" in
@@ -73,6 +84,10 @@ ovpn_menu_main() {
             4) ovpn_action_status ;;
             5) ovpn_action_gateway_enable ;;
             6) ovpn_action_gateway_disable ;;
+            7)
+                read -r -p "Nome do cliente MikroTik: " name || continue
+                ovpn_action_add_mikrotik "${name}"
+                ;;
             0) return 0 ;;
             *) ovpn_log_warn "Opção inválida." ;;
         esac
