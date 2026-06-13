@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# Stub do 'qrencode' para os testes. Registra os argumentos e consome a entrada
+# padrão (o conteúdo do .ovpn), sem gerar QR real.
+
+printf '%s\n' "$*" >> "${STUB_CALLS_DIR:?STUB_CALLS_DIR não definido}/qrencode"
+cat > /dev/null
+exit "${STUB_QRENCODE_EXIT:-0}"

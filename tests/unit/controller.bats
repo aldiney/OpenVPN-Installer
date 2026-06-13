@@ -20,4 +20,5 @@ setup() {
     run ovpn_menu_main <<< "0"
     [ "$status" -eq 0 ]
     [[ "$output" == *"Instalar"* ]]
+    [[ "$output" == *"cliente"* ]]
 }

@@ -15,6 +15,17 @@ ovpn_action_install_hub() {
     ovpn_log_ok "Hub instalado. Configuração em $(ovpn_server_conf_path)."
 }
 
+# Adiciona um cliente: cria o perfil .ovpn e mostra o QR Code.
+ovpn_action_add_client() {
+    local name="$1"
+    if [[ -z "${name}" ]]; then
+        ovpn_log_warn "Nome do cliente vazio."
+        return 1
+    fi
+    ovpn_client_create "${name}"
+    ovpn_client_qr "${name}"
+}
+
 # Mostra o status do servidor.
 ovpn_action_status() {
     ovpn_server_status || ovpn_log_warn "Servidor não está ativo."
@@ -22,17 +33,24 @@ ovpn_action_status() {
 
 # Laço principal do menu interativo.
 ovpn_menu_main() {
-    local choice
+    local choice name
     while true; do
         ovpn_ui_banner
         ovpn_ui_menu "Menu Principal" \
             "Instalar hub (servidor)" \
+            "Adicionar cliente" \
+            "Listar clientes" \
             "Status do servidor"
         printf '0. Sair\n'
         read -r -p "Escolha uma opção: " choice || return 0
         case "${choice}" in
             1) ovpn_action_install_hub ipv4 ;;
-            2) ovpn_action_status ;;
+            2)
+                read -r -p "Nome do cliente: " name || continue
+                ovpn_action_add_client "${name}"
+                ;;
+            3) ovpn_client_list ;;
+            4) ovpn_action_status ;;
             0) return 0 ;;
             *) ovpn_log_warn "Opção inválida." ;;
         esac
