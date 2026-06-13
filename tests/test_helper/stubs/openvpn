@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# Stub do 'openvpn' para os testes.
+# Registra os argumentos. Para 'openvpn --genkey secret <arquivo>', cria o
+# arquivo (último argumento) com conteúdo fixo. Não gera chave real.
+
+printf '%s\n' "$*" >> "${STUB_CALLS_DIR:?STUB_CALLS_DIR não definido}/openvpn"
+
+if [[ "${1:-}" == "--genkey" ]]; then
+    out="${!#}"
+    printf 'STUB-TLS-CRYPT\n' > "${out}"
+fi
+
+exit "${STUB_OPENVPN_EXIT:-0}"
