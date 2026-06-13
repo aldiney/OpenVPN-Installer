@@ -10,7 +10,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LIB_DIR="${SCRIPT_DIR}/lib"
 
 # Ordem importa: módulos básicos primeiro, depois os de domínio e o controller.
-for module in core log ui os_detect deps pki wizard_ipproto server_config ccd client_profile gateway controller; do
+for module in core log ui os_detect deps pki wizard_ipproto server_config ccd client_profile mikrotik_profile gateway controller; do
     # shellcheck source=/dev/null
     source "${LIB_DIR}/${module}.sh"
 done
