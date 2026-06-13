@@ -35,6 +35,11 @@ ovpn_client_create() {
         printf 'dev tun\n'
         printf 'proto %s\n' "${OVPN_PROTO}"
         printf 'remote %s %s\n' "${OVPN_REMOTE_HOST}" "${OVPN_PORT}"
+        # Segundo hub (dual-hub ativo-ativo): o cliente tenta um, depois o outro.
+        if [[ -n "${OVPN_REMOTE_HOST_2:-}" ]]; then
+            printf 'remote %s %s\n' "${OVPN_REMOTE_HOST_2}" "${OVPN_PORT}"
+            printf 'remote-random\n'
+        fi
         printf 'resolv-retry infinite\n'
         printf 'nobind\n'
         printf 'remote-cert-tls server\n'
