@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# Stub de exemplo: substitui o 'apt-get' real durante os testes.
+#
+# Registra os argumentos recebidos em $STUB_CALLS_DIR/apt-get (uma chamada por
+# linha) e NÃO instala nada. Permite que os testes verifiquem *o que* um módulo
+# faria (qual comando apt-get ele chamaria), sem tocar no sistema.
+#
+# Para simular falha do apt-get, defina STUB_APT_GET_EXIT=<código> no teste.
+
+printf '%s\n' "$*" >> "${STUB_CALLS_DIR:?STUB_CALLS_DIR não definido}/apt-get"
+exit "${STUB_APT_GET_EXIT:-0}"
