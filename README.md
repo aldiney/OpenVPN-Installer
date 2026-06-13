@@ -7,8 +7,10 @@ privada**, onde qualquer equipamento alcança qualquer outro por IP.
 > Objetivo: acessar qualquer um dos seus equipamentos a partir de qualquer outro, como se
 > todos estivessem na mesma rede local, não importa onde estejam.
 
-> ⚠️ **Projeto em construção.** O código é desenvolvido em fatias verticais (issues), com
-> testes desde o início. Veja as issues do repositório para acompanhar o progresso.
+> **Status:** implementação completa, desenvolvida em fatias verticais com testes
+> automatizados (bats-core) e CI verde a cada mudança. A validação final em equipamentos
+> reais — conexão de cliente/celular/MikroTik e failover entre dois hubs — fica a cargo do
+> operador no host alvo.
 
 ## Como funciona
 
@@ -20,7 +22,7 @@ Para evitar ponto único de falha, é possível ter **dois hubs ativos ao mesmo 
 (ativo-ativo): os equipamentos se distribuem entre eles, e um túnel entre os hubs garante
 que todos continuem se enxergando.
 
-Recursos planejados:
+Recursos:
 
 - 🔗 **Rede única** — todos os equipamentos se comunicam entre si (`client-to-client`).
 - 📌 **IP fixo por equipamento** — endereços estáveis e previsíveis.
@@ -32,6 +34,8 @@ Recursos planejados:
 - ♻️ **Dois hubs ativo-ativo** — redundância e múltiplos pontos de entrada.
 - ✅ **Instalação consciente** — o script detecta o que falta, mostra exatamente o que vai
   instalar e **só prossegue após a sua confirmação**.
+- 🧹 **Gestão pelo menu** — adicionar/listar clientes, ver status, revogar acesso e
+  desinstalar (preservando ou removendo a PKI).
 
 ## Requisitos
 
@@ -75,13 +79,15 @@ Este projeto adota regras explícitas de segurança:
 ## Estrutura do projeto
 
 ```
-bootstrap.sh        # prepara a máquina e baixa o projeto
-install.sh          # menu interativo principal
-lib/                # módulos (ver lib/README.md)
-templates/          # modelos de configuração
-tests/              # testes bats-core (ver tests/README.md)
-docs/               # documentação
-  prd/              # PRD e decisões de arquitetura (ADRs)
+bootstrap.sh           # prepara a máquina e baixa o projeto
+install.sh             # menu interativo principal
+lib/                   # módulos (ver lib/README.md)
+tests/                 # testes bats-core (ver tests/README.md)
+docs/                  # documentação
+  prd/                 # PRD e decisões de arquitetura (ADRs)
+  mikrotik-guide.md    # guia para conectar um MikroTik
+  dual-hub.md          # guia dos dois hubs ativo-ativo
+  troubleshooting.md   # solução de problemas
 ```
 
 ## Licença
