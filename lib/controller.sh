@@ -27,6 +27,20 @@ ovpn_action_add_client() {
     ovpn_client_qr "${name}"
 }
 
+# Ativa a saída para a internet por uma interface WAN.
+ovpn_action_gateway_enable() {
+    local wan
+    read -r -p "Interface WAN (ex.: eth0): " wan || return 1
+    ovpn_gateway_enable "${wan}"
+}
+
+# Desativa a saída para a internet.
+ovpn_action_gateway_disable() {
+    local wan
+    read -r -p "Interface WAN usada (ex.: eth0): " wan || return 1
+    ovpn_gateway_disable "${wan}"
+}
+
 # Mostra o status do servidor.
 ovpn_action_status() {
     ovpn_server_status || ovpn_log_warn "Servidor não está ativo."
@@ -41,7 +55,9 @@ ovpn_menu_main() {
             "Instalar hub (servidor)" \
             "Adicionar cliente" \
             "Listar clientes" \
-            "Status do servidor"
+            "Status do servidor" \
+            "Ativar saída para a internet" \
+            "Desativar saída para a internet"
         printf '0. Sair\n'
         read -r -p "Escolha uma opção: " choice || return 0
         case "${choice}" in
@@ -55,6 +71,8 @@ ovpn_menu_main() {
                 ;;
             3) ovpn_client_list ;;
             4) ovpn_action_status ;;
+            5) ovpn_action_gateway_enable ;;
+            6) ovpn_action_gateway_disable ;;
             0) return 0 ;;
             *) ovpn_log_warn "Opção inválida." ;;
         esac

@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# Stub do 'iptables' para os testes. Registra os argumentos; não altera o firewall.
+printf '%s\n' "$*" >> "${STUB_CALLS_DIR:?STUB_CALLS_DIR não definido}/iptables"
+exit "${STUB_IPTABLES_EXIT:-0}"
