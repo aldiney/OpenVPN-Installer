@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Stub do 'sysctl' para os testes. Registra os argumentos e não altera o kernel.
+
+printf '%s\n' "$*" >> "${STUB_CALLS_DIR:?STUB_CALLS_DIR não definido}/sysctl"
+exit "${STUB_SYSCTL_EXIT:-0}"
