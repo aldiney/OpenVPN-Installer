@@ -21,7 +21,9 @@ ovpn_ccd_next_free_ip() {
     local dir ip i used
     dir="$(ovpn_ccd_dir)"
     mkdir -p "${dir}"
-    used=" $(awk '/ifconfig-push/ {print $2}' "${dir}"/* 2>/dev/null) "
+    # Lista dos IPs já usados, separados por ESPAÇO (o $() junta com quebra de
+    # linha; o tr normaliza para o teste de pertencimento abaixo funcionar).
+    used=" $(awk '/ifconfig-push/ {print $2}' "${dir}"/* 2>/dev/null | tr '\n' ' ') "
     for i in $(seq 2 254); do
         ip="${OVPN_VPN_PREFIX_V4}.${i}"
         case "${used}" in

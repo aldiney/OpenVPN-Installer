@@ -34,6 +34,9 @@ cd ~/OpenVPN-Installer
 sudo ./install.sh
 ```
 
+> O `bootstrap.sh` (e a opção **14** do menu) instala o comando **`openvpn-installer`** no
+> PATH — depois você abre o menu de qualquer lugar com `sudo openvpn-installer`.
+
 Aparece o menu. Escolha **1 (Instalar hub)**. O instalador vai:
 
 1. **Verificar dependências** — lista o que falta (`openvpn`, `qrencode`) e **pede
@@ -67,9 +70,19 @@ sudo ufw allow 1194/udp
 ## Parte 2 — Adicionar um equipamento (gerar o perfil)
 
 No menu, escolha **2 (Adicionar cliente)** e informe um nome (ex.: `notebook`, `celular`).
-Na primeira vez, o instalador pergunta o **IP/domínio do hub** (vai para o `remote` do perfil).
-Ele também pergunta se **este cliente deve sair pela internet do hub (full-tunnel)** — veja
-"Saída para a internet" abaixo.
+Na **primeira vez** o instalador pergunta o **IP/domínio do hub** e o **salva** (não pergunta
+de novo). Em seguida pergunta o **roteamento** deste cliente:
+
+- **Padrão** — só a rede VPN (o cliente mantém a própria internet);
+- **Full-tunnel** — todo o tráfego + DNS pela VPN (inclui `block-outside-dns` no Windows);
+- **Rotas específicas (split)** — só as sub-redes que você informar.
+
+Por fim, pergunta se quer **gerar o QR Code** (opcional). O `.ovpn` (e o PNG do QR) ficam em
+**`~/ovpn-clients/`** — e uma cópia do `.ovpn` também é o arquivo a transferir para o
+equipamento.
+
+> Mudou o roteamento ou o host depois? Use **12 (Regerar perfil de um cliente)** — regenera o
+> `.ovpn` sem reemitir o certificado. Para trocar o host salvo: **13 (Alterar host/IP do hub)**.
 
 Resultado:
 
@@ -150,6 +163,9 @@ Veja os IPs com a opção **3 (Listar clientes)** no hub.
 - **9** — **desinstalar** o hub (escolhe preservar ou remover a PKI).
 - **10** — **verificar/instalar dependências** a qualquer momento.
 - **11** — **atualizar/migrar instalação** (ver abaixo).
+- **12** — **regerar perfil de um cliente** (muda o roteamento sem reemitir o certificado).
+- **13** — **alterar host/IP do hub** (salvo em `/etc/openvpn/installer.conf`).
+- **14** — **instalar comando no PATH** (`openvpn-installer`).
 
 ## Atualizar uma instalação existente
 

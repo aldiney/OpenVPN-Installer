@@ -49,3 +49,13 @@ setup() {
     run stub_calls gh
     [[ "$output" == *"repo clone"* ]]
 }
+
+@test "bootstrap_install_command: cria o symlink openvpn-installer no PATH" {
+    export OVPN_BIN_DIR="${BATS_TEST_TMPDIR}/bin"
+    mkdir -p "${OVPN_BIN_DIR}"
+    export OVPN_TARGET_DIR="${BATS_TEST_TMPDIR}/repo"
+    mkdir -p "${OVPN_TARGET_DIR}"
+    printf '#!/usr/bin/env bash\n' > "${OVPN_TARGET_DIR}/install.sh"
+    run bootstrap_install_command
+    [ -L "${OVPN_BIN_DIR}/openvpn-installer" ]
+}

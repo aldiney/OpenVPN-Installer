@@ -53,6 +53,17 @@ bootstrap_auth_github() {
     gh auth login
 }
 
+# Instala o comando 'openvpn-installer' no PATH (symlink para o install.sh).
+bootstrap_install_command() {
+    local bindir="${OVPN_BIN_DIR:-/usr/local/bin}"
+    local link="${bindir}/openvpn-installer"
+    if ln -sf "${OVPN_TARGET_DIR}/install.sh" "${link}" 2>/dev/null; then
+        printf "    Comando 'openvpn-installer' instalado em %s\n" "${link}"
+    else
+        printf "    (não foi possível criar %s — rode como root para ter o comando)\n" "${link}"
+    fi
+}
+
 # Clona (ou atualiza) o repositório no diretório destino.
 bootstrap_clone() {
     if [[ -d "${OVPN_TARGET_DIR}/.git" ]]; then
@@ -72,10 +83,11 @@ bootstrap_main() {
 
     bootstrap_step "3/3  Clonando ${OVPN_REPO}"
     bootstrap_clone
+    bootstrap_install_command
 
     printf '\nPronto! Para usar:\n'
-    printf '  cd %s\n' "${OVPN_TARGET_DIR}"
-    printf '  sudo ./install.sh\n\n'
+    printf '  sudo openvpn-installer        # de qualquer lugar\n'
+    printf '  # ou: cd %s && sudo ./install.sh\n\n' "${OVPN_TARGET_DIR}"
 }
 
 # Só executa o fluxo quando o script é chamado diretamente (não ao ser "sourced"
