@@ -46,3 +46,19 @@ setup() {
     run stub_calls sysctl
     [ -z "$output" ]
 }
+
+@test "ovpn_server_render: inclui mssfix (clamping de MSS contra travas de MTU)" {
+    ovpn_server_render ipv4
+    grep -qE '^mssfix [0-9]+$' "$(ovpn_server_conf_path)"
+}
+
+@test "ovpn_server_render: mssfix presente também em dual-stack" {
+    ovpn_server_render dual
+    grep -qE '^mssfix [0-9]+$' "$(ovpn_server_conf_path)"
+}
+
+@test "ovpn_server_render: mssfix é configurável via OVPN_MSSFIX" {
+    export OVPN_MSSFIX=1400
+    ovpn_server_render ipv4
+    grep -q '^mssfix 1400$' "$(ovpn_server_conf_path)"
+}

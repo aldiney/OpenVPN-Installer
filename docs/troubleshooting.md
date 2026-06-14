@@ -45,6 +45,17 @@ Guia rápido para os problemas mais comuns. Mensagens do instalador são sempre 
   encaminhamento de pacotes está ativo (`net.ipv4.ip_forward=1`). Ao desativar, a regra de
   NAT é removida.
 
+## MTU: HTTPS/transferências grandes travando (ping/SSH OK)
+
+Se **ping, SSH e traceroute funcionam**, mas **HTTPS ou transferências grandes ficam
+penduradas** dentro da VPN, é o sintoma clássico de **MTU/MSS**: pacotes próximos do MTU são
+descartados no caminho.
+
+- O `server.conf` já inclui **`mssfix`** (padrão `1420`) para limitar o tamanho do pacote e
+  evitar isso. Se ainda ocorrer em algum caminho, reduza o valor (ex.: `OVPN_MSSFIX=1380`)
+  e reinstale/re-renderize a configuração.
+- Vale para IPv4 e IPv6.
+
 ## Desinstalação
 
 - "Desinstalar o hub" para o serviço e remove a configuração. Você escolhe **preservar** ou
