@@ -31,6 +31,7 @@ ovpn_action_install_hub() {
     ovpn_server_render "${mode}"
     ovpn_server_apply_forwarding "${mode}"
     ovpn_server_enable
+    ovpn_firewall_open_port "${OVPN_PORT}" udp
     ovpn_log_ok "Hub instalado. Configuração em $(ovpn_server_conf_path)."
 }
 

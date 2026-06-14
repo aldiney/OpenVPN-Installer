@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# Stub do 'ufw' para os testes. Registra os argumentos. 'ufw status' devolve
+# "Status: <STUB_UFW_STATUS>" (active por padrão).
+
+printf '%s\n' "$*" >> "${STUB_CALLS_DIR:?STUB_CALLS_DIR não definido}/ufw"
+if [[ "${1:-}" == "status" ]]; then
+    printf 'Status: %s\n' "${STUB_UFW_STATUS:-active}"
+fi
+exit "${STUB_UFW_EXIT:-0}"
