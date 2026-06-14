@@ -117,6 +117,21 @@ esperado** e **critério de aprovação**. Marque `[x]` ao passar.
 
 ---
 
+## T9 — Upgrade/migração in-place (sem quebrar clientes)
+
+- [ ] Pré-requisitos: uma instalação feita por uma versão anterior (ex.: cert do servidor
+      sem Key Usage e/ou `server.conf` sem `mssfix`), com pelo menos um cliente conectado.
+- [ ] Passos:
+  1. No hub: `cd ~/OpenVPN-Installer && git pull`.
+  2. `sudo ./install.sh` → aceitar a oferta de migrar (ou menu opção **11**).
+  3. Conferir: `sudo openssl x509 -in /etc/openvpn/pki/issued/server.crt -noout -ext keyUsage,extendedKeyUsage`
+     mostra KU + serverAuth; `grep -q '^mssfix' /etc/openvpn/server/server.conf`.
+  4. O cliente já conectado deve **reconectar sozinho** após o restart (sem regerar `.ovpn`).
+  5. Rodar a migração **de novo** → deve dizer "nada a corrigir" (idempotente).
+- [ ] Esperado: correções aplicadas; CA e perfis de cliente **intactos**; clientes seguem
+      conectando com o `.ovpn` antigo; 2ª execução é no-op.
+- [ ] Aprovação: cliente antigo reconecta após a migração; reexecutar não muda nada.
+
 ## Registro
 
 | Teste | Resultado | Observações |

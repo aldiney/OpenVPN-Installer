@@ -149,6 +149,25 @@ Veja os IPs com a opção **3 (Listar clientes)** no hub.
   CRL).
 - **9** — **desinstalar** o hub (escolhe preservar ou remover a PKI).
 - **10** — **verificar/instalar dependências** a qualquer momento.
+- **11** — **atualizar/migrar instalação** (ver abaixo).
+
+## Atualizar uma instalação existente
+
+Depois de um `git pull` no hub, aplique as correções na instalação **sem regerar nada de
+cliente**:
+
+```bash
+cd ~/OpenVPN-Installer && git pull
+sudo ./install.sh        # se a instalação for de versão anterior, ele OFERECE migrar
+# ou, no menu, escolha a opção 11 (Atualizar/migrar instalação)
+```
+
+O upgrade é **idempotente** e **nunca quebra clientes**: nunca toca na CA nem nos
+certificados/`.ovpn` dos clientes; no máximo **reemite o certificado do servidor** (mesma
+CA — os clientes seguem confiando), **acrescenta** diretivas faltantes (ex.: `mssfix`) e
+**abre a porta** no firewall. Mudanças que alteram rota/comportamento (ex.: `redirect-gateway`
+global) são apenas **reportadas**, nunca aplicadas sozinhas. O serviço só reinicia se algo
+mudou (os clientes reconectam sozinhos).
 
 ## Dois hubs (redundância)
 

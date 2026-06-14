@@ -93,6 +93,29 @@ setup() {
     [[ "$output" == *"ca.crt"* ]]
 }
 
+@test "ovpn_pki_reissue_server: reemite o cert do servidor sem tocar na CA" {
+    _ovpn_pki_gen_ca_key()     { printf 'CA-KEY\n' > "$1"; }
+    _ovpn_pki_gen_ca_cert()    { printf 'CA-CERT\n' > "$2"; }
+    _ovpn_pki_gen_entity_key() { printf 'EK\n' > "$1"; }
+    _ovpn_pki_sign_entity()    { printf 'CERT-ORIGINAL\n' > "$2"; }
+    ovpn_pki_build_ca
+    ovpn_pki_issue_server server
+    local ca_before first
+    ca_before="$(sha256sum "$(ovpn_pki_ca_cert)")"
+    first="$(cat "${OVPN_PKI_DIR}/issued/server.crt")"
+
+    _ovpn_pki_sign_entity() { printf 'CERT-NOVO-COM-KU\n' > "$2"; }
+    run ovpn_pki_reissue_server server
+    [ "$status" -eq 0 ]
+    [ "$(cat "${OVPN_PKI_DIR}/issued/server.crt")" != "${first}" ]
+    [ "$(sha256sum "$(ovpn_pki_ca_cert)")" = "${ca_before}" ]
+}
+
+@test "ovpn_pki_reissue_server: aborta se a CA não existe" {
+    run ovpn_pki_reissue_server server
+    [ "$status" -ne 0 ]
+}
+
 @test "ovpn_pki_issue_server: cria o certificado do servidor" {
     _ovpn_pki_gen_ca_key()       { printf 'K\n' > "$1"; }
     _ovpn_pki_gen_ca_cert()      { printf 'CA\n' > "$2"; }

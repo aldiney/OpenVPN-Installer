@@ -120,6 +120,21 @@ ovpn_pki_issue_server() {
     _ovpn_pki_issue "$1" server
 }
 
+# Reemite SÓ o certificado do servidor, assinado pela MESMA CA. Usado na migração
+# que corrige extensões (Key Usage). NUNCA toca na CA nem em certs de cliente, então
+# os clientes continuam confiando (eles validam contra a CA, que não muda).
+ovpn_pki_reissue_server() {
+    local name="$1"
+    if [[ ! -f "$(ovpn_pki_ca_cert)" || ! -f "$(ovpn_pki_ca_key)" ]]; then
+        ovpn_die "CA ausente — não é possível reemitir o certificado do servidor."
+    fi
+    rm -f "${OVPN_PKI_DIR}/issued/${name}.crt" \
+          "${OVPN_PKI_DIR}/private/${name}.key" \
+          "${OVPN_PKI_DIR}/issued/${name}.csr" \
+          "${OVPN_PKI_DIR}/issued/${name}.ext"
+    _ovpn_pki_issue "${name}" server
+}
+
 # Emite o certificado de um cliente (EKU clientAuth).
 ovpn_pki_issue_client() {
     _ovpn_pki_issue "$1" client

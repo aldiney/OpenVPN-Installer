@@ -16,6 +16,7 @@ setup() {
     load_lib ccd
     load_lib deps
     load_lib firewall
+    load_lib upgrade
     load_lib controller
 }
 

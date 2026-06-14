@@ -32,6 +32,7 @@ ovpn_action_install_hub() {
     ovpn_server_apply_forwarding "${mode}"
     ovpn_server_enable
     ovpn_firewall_open_port "${OVPN_PORT}" udp
+    _ovpn_upgrade_write_stamp "${OVPN_SCHEMA_VERSION}"
     ovpn_log_ok "Hub instalado. Configuração em $(ovpn_server_conf_path)."
 }
 
@@ -95,6 +96,12 @@ ovpn_action_uninstall() {
     ovpn_uninstall "${pki_mode}"
 }
 
+# Aplica as migrações de upgrade e reporta achados de rota (sem alterar).
+ovpn_action_upgrade() {
+    ovpn_upgrade_run
+    ovpn_upgrade_report
+}
+
 # Mostra o status do servidor e os clientes cadastrados.
 ovpn_action_status() {
     ovpn_server_status || ovpn_log_warn "Servidor não está ativo."
@@ -117,7 +124,8 @@ ovpn_menu_main() {
             "Adicionar cliente MikroTik" \
             "Revogar cliente" \
             "Desinstalar o hub" \
-            "Verificar/instalar dependências"
+            "Verificar/instalar dependências" \
+            "Atualizar/migrar instalação"
         printf '0. Sair\n'
         read -r -p "Escolha uma opção: " choice || return 0
         case "${choice}" in
@@ -140,6 +148,7 @@ ovpn_menu_main() {
             8) ovpn_action_revoke_client ;;
             9) ovpn_action_uninstall ;;
             10) ovpn_action_check_deps ;;
+            11) ovpn_action_upgrade ;;
             0) return 0 ;;
             *) ovpn_log_warn "Opção inválida." ;;
         esac
