@@ -31,3 +31,29 @@ setup() {
     b="$(ovpn_ccd_assign bob)"
     [ "${a}" != "${b}" ]
 }
+
+@test "ovpn_ccd_set_full_tunnel: empurra redirect-gateway e DNS só para o cliente" {
+    ovpn_ccd_assign alice >/dev/null
+    ovpn_ccd_set_full_tunnel alice
+    local f="${OVPN_SERVER_DIR}/ccd/alice"
+    grep -q 'push "redirect-gateway def1"' "${f}"
+    grep -q 'dhcp-option DNS' "${f}"
+}
+
+@test "ovpn_ccd_set_full_tunnel: é idempotente (não duplica)" {
+    ovpn_ccd_assign alice >/dev/null
+    ovpn_ccd_set_full_tunnel alice
+    ovpn_ccd_set_full_tunnel alice
+    local n
+    n="$(grep -c 'redirect-gateway' "${OVPN_SERVER_DIR}/ccd/alice")"
+    [ "${n}" -eq 1 ]
+}
+
+@test "ovpn_ccd_unset_full_tunnel: remove a marcação (volta a split-tunnel)" {
+    ovpn_ccd_assign alice >/dev/null
+    ovpn_ccd_set_full_tunnel alice
+    ovpn_ccd_unset_full_tunnel alice
+    local f="${OVPN_SERVER_DIR}/ccd/alice"
+    ! grep -q 'redirect-gateway' "${f}"
+    grep -q 'ifconfig-push' "${f}"
+}

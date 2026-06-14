@@ -44,6 +44,10 @@ ovpn_action_add_client() {
     fi
     _ovpn_ensure_remote_host || return 1
     ovpn_client_create "${name}"
+    if ovpn_ui_confirm "Este cliente deve sair pela internet do hub (full-tunnel)?"; then
+        ovpn_ccd_set_full_tunnel "${name}"
+        ovpn_log_info "Cliente ${name} marcado como full-tunnel (requer a saída-internet ativa no hub)."
+    fi
     ovpn_client_qr "${name}"
 }
 

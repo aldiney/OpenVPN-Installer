@@ -1,65 +1,59 @@
 #!/usr/bin/env bash
-# Módulo gateway — saída para a internet opcional (desligada por padrão).
-# Quando ativada, um hub passa a rotear o tráfego de internet dos clientes:
-# empurra a rota padrão (redirect-gateway) e faz NAT masquerade na WAN.
-# Backend de firewall: nft (padrão nos alvos) ou iptables (fallback).
-# Depende dos módulos core, log, wizard_ipproto e server_config.
+# Módulo gateway — saída para a internet (NAT) opcional, por hub.
+#
+# Habilita o NAT (masquerade) do tráfego da VPN pela interface WAN. QUEM usa a
+# saída é decidido POR CLIENTE (ver ovpn_ccd_set_full_tunnel): só os clientes
+# marcados como full-tunnel saem pela internet do hub; os demais ficam em
+# split-tunnel. Em host com UFW, ajusta a política de forward (que costuma ser
+# DROP e bloquearia o encaminhamento). Backends: ufw, nft ou iptables.
+# Depende dos módulos core, log e firewall.
 
 : "${OVPN_SUBNET_V4:=10.8.0.0}"
+: "${OVPN_UFW_DEFAULTS:=/etc/default/ufw}"
 
-# Seam: escolhe o backend de firewall disponível.
-_ovpn_gateway_backend() {
-    if command -v nft >/dev/null 2>&1; then
-        printf 'nft'
-    else
-        printf 'iptables'
-    fi
-}
-
-# Verdadeiro (0) se o server.conf já contém a linha de push indicada.
-_ovpn_gateway_conf_has() {
-    awk -v p="$1" 'index($0, p) { found = 1 } END { exit !found }' "$2" 2>/dev/null
-}
-
-# Ativa a saída para a internet pela interface WAN informada.
+# Ativa a saída para a internet (NAT) pela interface WAN informada.
 ovpn_gateway_enable() {
     local wan="$1"
     [[ -n "${wan}" ]] || ovpn_die "Informe a interface WAN (ex.: eth0)."
-
     sysctl -w net.ipv4.ip_forward=1
 
-    local conf
-    conf="$(ovpn_server_conf_path)"
-    if ! _ovpn_gateway_conf_has 'redirect-gateway def1' "${conf}"; then
-        printf 'push "redirect-gateway def1"\n' >> "${conf}"
-    fi
-
-    case "$(_ovpn_gateway_backend)" in
+    case "$(_ovpn_firewall_backend)" in
+        ufw)
+            _ovpn_gateway_ufw_forward
+            _ovpn_gateway_nft_masquerade "${wan}"
+            ;;
         nft)
-            nft add table ip ovpn 2>/dev/null || true
-            nft add chain ip ovpn postrouting '{ type nat hook postrouting priority 100 ; }' 2>/dev/null || true
-            nft add rule ip ovpn postrouting ip saddr "${OVPN_SUBNET_V4}/24" oifname "${wan}" masquerade
+            _ovpn_gateway_nft_masquerade "${wan}"
             ;;
         *)
             iptables -t nat -A POSTROUTING -s "${OVPN_SUBNET_V4}/24" -o "${wan}" -j MASQUERADE
             ;;
     esac
-
-    ovpn_log_ok "Saída para a internet ativada via ${wan}."
+    ovpn_log_ok "Saída para a internet (NAT) ativada via ${wan}. Marque clientes como full-tunnel para usá-la."
 }
 
-# Desativa a saída para a internet (remove o push e a regra de NAT).
+# Libera o encaminhamento no UFW (a política padrão costuma ser DROP, o que
+# descartaria os pacotes roteados mesmo com o masquerade no lugar).
+_ovpn_gateway_ufw_forward() {
+    if [[ -f "${OVPN_UFW_DEFAULTS}" ]]; then
+        sed -i 's/^DEFAULT_FORWARD_POLICY=.*/DEFAULT_FORWARD_POLICY="ACCEPT"/' "${OVPN_UFW_DEFAULTS}"
+        ufw reload
+    fi
+}
+
+# Cria a regra de masquerade numa tabela nft própria (não conflita com o UFW).
+_ovpn_gateway_nft_masquerade() {
+    local wan="$1"
+    nft add table ip ovpn 2>/dev/null || true
+    nft add chain ip ovpn postrouting '{ type nat hook postrouting priority 100 ; }' 2>/dev/null || true
+    nft add rule ip ovpn postrouting ip saddr "${OVPN_SUBNET_V4}/24" oifname "${wan}" masquerade
+}
+
+# Desativa a saída para a internet (remove o NAT).
 ovpn_gateway_disable() {
     local wan="${1:-}"
-    local conf
-    conf="$(ovpn_server_conf_path)"
-    if [[ -f "${conf}" ]]; then
-        awk '!index($0, "redirect-gateway def1")' "${conf}" > "${conf}.tmp" \
-            && mv "${conf}.tmp" "${conf}"
-    fi
-
-    case "$(_ovpn_gateway_backend)" in
-        nft)
+    case "$(_ovpn_firewall_backend)" in
+        ufw|nft)
             nft delete table ip ovpn 2>/dev/null || true
             ;;
         *)
@@ -69,6 +63,5 @@ ovpn_gateway_disable() {
             fi
             ;;
     esac
-
     ovpn_log_ok "Saída para a internet desativada."
 }
