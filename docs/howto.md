@@ -68,6 +68,8 @@ sudo ufw allow 1194/udp
 
 No menu, escolha **2 (Adicionar cliente)** e informe um nome (ex.: `notebook`, `celular`).
 Na primeira vez, o instalador pergunta o **IP/domínio do hub** (vai para o `remote` do perfil).
+Ele também pergunta se **este cliente deve sair pela internet do hub (full-tunnel)** — veja
+"Saída para a internet" abaixo.
 
 Resultado:
 
@@ -135,8 +137,14 @@ Veja os IPs com a opção **3 (Listar clientes)** no hub.
 
 ## Opções extras (menu)
 
-- **5 / 6** — ativar/desativar **saída para a internet** por este hub (NAT). Informe a
-  interface WAN (ex.: `eth0`). Desligado por padrão.
+- **5 / 6** — ativar/desativar a **saída para a internet** por este hub (NAT). Informe a
+  interface WAN (ex.: `eth0`). Isso só **habilita a capacidade** de sair pela internet do
+  hub; **quem usa é decidido por cliente**.
+  - **Full-tunnel por cliente**: ao adicionar um cliente, responda `s` para "sair pela
+    internet do hub". Só esse cliente recebe `redirect-gateway` + DNS (via o `ccd` dele);
+    os demais ficam **split-tunnel** (usam a própria internet e só alcançam a rede VPN).
+  - Em hosts com **UFW**, o módulo ajusta a política de forward automaticamente (senão o
+    UFW descartaria o tráfego roteado).
 - **8** — **revogar** o acesso de um equipamento (remove o perfil e coloca o certificado na
   CRL).
 - **9** — **desinstalar** o hub (escolhe preservar ou remover a PKI).
