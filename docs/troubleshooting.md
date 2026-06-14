@@ -54,6 +54,25 @@ Guia rápido para os problemas mais comuns. Mensagens do instalador são sempre 
   - **Manual (equivalente)**: `sudo ufw route allow in on tun0 out on <WAN> && sudo ufw reload`.
   - Reconecte o cliente e teste `nslookup` / `mtr`.
 
+### Testar a saída SEM risco de ficar offline
+
+Como o full-tunnel manda **tudo** pela VPN, se algo falhar o cliente fica sem internet. Para
+testar sem esse risco, crie um cliente em modo **split** roteando só IPs de teste:
+
+- No menu: **2 (Adicionar cliente)** → roteamento **3 (rotas específicas)** → informe
+  `1.1.1.1 255.255.255.255,8.8.8.8 255.255.255.255`.
+- No cliente, conecte e teste: `ping 1.1.1.1` e `nslookup globo.com 1.1.1.1`. Só esses IPs vão
+  pela VPN; a internet geral do cliente **não é afetada**. Se responderem, o servidor está OK
+  e o full-tunnel é seguro de ativar.
+
+### Validação automática no servidor
+
+Rode **antes** de conectar o cliente; ele captura o tráfego por uma janela e diz PASSOU/FALHOU:
+
+```bash
+sudo ./tools/diag-saida.sh 180     # janela de 180s; conecte e gere tráfego durante ela
+```
+
 ## MTU: HTTPS/transferências grandes travando (ping/SSH OK)
 
 Se **ping, SSH e traceroute funcionam**, mas **HTTPS ou transferências grandes ficam
