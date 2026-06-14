@@ -15,11 +15,13 @@ setup() {
     load_lib server_config
     load_lib ccd
     load_lib deps
+    load_lib firewall
     load_lib controller
 }
 
-# Substitui os seams de criptografia (não dependemos de cripto real aqui) e
-# trata todas as dependências como já instaladas (sem apt).
+# Substitui os seams de criptografia (não dependemos de cripto real aqui),
+# trata as dependências como já instaladas (sem apt) e força o backend de
+# firewall para nft (que tem stub).
 fake_pki_seams() {
     _ovpn_pki_gen_ca_key()        { printf 'K\n' > "$1"; }
     _ovpn_pki_gen_ca_cert()       { printf 'CA\n' > "$2"; }
@@ -27,6 +29,7 @@ fake_pki_seams() {
     _ovpn_pki_sign_entity()       { printf 'CERT\n' > "$2"; }
     _ovpn_pki_gen_tls_crypt_key() { printf 'TC\n' > "$1"; }
     _ovpn_pkg_installed()         { return 0; }
+    _ovpn_firewall_backend()      { printf 'nft'; }
 }
 
 @test "instalar hub: gera a config e habilita o serviço (fluxo completo)" {

@@ -33,13 +33,24 @@ _ovpn_pki_gen_entity_key() {
 # Args: <chave> <cert> <cn> <tipo: server|client>
 # O tipo define o Extended Key Usage (serverAuth/clientAuth), usado pelo
 # remote-cert-tls do OpenVPN para distinguir servidor de cliente.
+# Extensões X.509 da entidade. remote-cert-tls (no cliente) exige Key Usage +
+# Extended Key Usage; sem isso o cliente recusa o cert do servidor (VERIFY KU ERROR).
+_ovpn_pki_ext_content() {
+    local kind="$1"
+    if [[ "${kind}" == "client" ]]; then
+        printf 'keyUsage=digitalSignature\n'
+        printf 'extendedKeyUsage=clientAuth\n'
+    else
+        printf 'keyUsage=digitalSignature,keyEncipherment\n'
+        printf 'extendedKeyUsage=serverAuth\n'
+    fi
+}
+
 _ovpn_pki_sign_entity() {
     local key="$1" cert="$2" cn="$3" kind="$4"
     local csr="${cert%.crt}.csr"
     local extfile="${cert%.crt}.ext"
-    local eku="serverAuth"
-    [[ "${kind}" == "client" ]] && eku="clientAuth"
-    printf 'extendedKeyUsage=%s\n' "${eku}" > "${extfile}"
+    _ovpn_pki_ext_content "${kind}" > "${extfile}"
     openssl req -new -key "${key}" -subj "/CN=${cn}" -out "${csr}"
     openssl x509 -req -in "${csr}" \
         -CA "$(ovpn_pki_ca_cert)" -CAkey "$(ovpn_pki_ca_key)" -CAcreateserial \

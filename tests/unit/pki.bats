@@ -104,6 +104,16 @@ setup() {
     [ -f "${OVPN_PKI_DIR}/issued/server.crt" ]
 }
 
+@test "_ovpn_pki_ext_content: servidor tem keyUsage + serverAuth; cliente tem clientAuth" {
+    run _ovpn_pki_ext_content server
+    [[ "$output" == *"keyUsage=digitalSignature,keyEncipherment"* ]]
+    [[ "$output" == *"extendedKeyUsage=serverAuth"* ]]
+
+    run _ovpn_pki_ext_content client
+    [[ "$output" == *"keyUsage=digitalSignature"* ]]
+    [[ "$output" == *"extendedKeyUsage=clientAuth"* ]]
+}
+
 @test "ovpn_pki_revoke_client: registra a revogação e atualiza a CRL" {
     _ovpn_pki_gen_crl() { printf 'CRL\n' > "$(ovpn_pki_crl_path)"; }
     run ovpn_pki_revoke_client alice
