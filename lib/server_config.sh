@@ -5,6 +5,9 @@
 
 : "${OVPN_SERVER_NAME:=server}"
 : "${OVPN_DATA_CIPHERS:=AES-256-GCM:AES-128-GCM}"
+# MSS clamping: limita o tamanho do pacote no túnel para evitar travas de MTU
+# (HTTPS/transferências grandes penduram enquanto ping/SSH passam). Vale p/ IPv4 e IPv6.
+: "${OVPN_MSSFIX:=1420}"
 
 # Caminhos derivados.
 ovpn_server_conf_path() { printf '%s' "${OVPN_SERVER_DIR}/${OVPN_SERVER_NAME}.conf"; }
@@ -27,6 +30,7 @@ ovpn_server_render() {
         printf 'dh none\n'
         printf 'tls-crypt %s\n' "$(ovpn_pki_tls_crypt)"
         printf 'data-ciphers %s\n' "${OVPN_DATA_CIPHERS}"
+        printf 'mssfix %s\n' "${OVPN_MSSFIX}"
         printf 'client-to-client\n'
         printf 'client-config-dir %s\n' "${ccd}"
         printf 'keepalive 10 120\n'
