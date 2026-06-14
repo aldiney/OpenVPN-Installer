@@ -8,6 +8,22 @@
 : "${OVPN_SERVER_DIR:=${OVPN_ETC}/server}"
 : "${OVPN_PKI_DIR:=${OVPN_ETC}/pki}"
 : "${OVPN_CLIENTS_DIR:=${OVPN_ETC}/clients}"
+: "${OVPN_SYSCTL_FILE:=/etc/sysctl.d/99-openvpn-installer.conf}"
+
+# Define um parâmetro de kernel de forma PERSISTENTE (grava em sysctl.d, para
+# sobreviver ao reboot) e o aplica em runtime. Idempotente.
+ovpn_sysctl_set() {
+    local key="$1" value="$2"
+    mkdir -p "$(dirname "${OVPN_SYSCTL_FILE}")"
+    if [[ -f "${OVPN_SYSCTL_FILE}" ]]; then
+        local tmp
+        tmp="$(mktemp)"
+        awk -F'[= ]+' -v k="${key}" '$1 != k' "${OVPN_SYSCTL_FILE}" > "${tmp}" \
+            && mv "${tmp}" "${OVPN_SYSCTL_FILE}"
+    fi
+    printf '%s = %s\n' "${key}" "${value}" >> "${OVPN_SYSCTL_FILE}"
+    sysctl -w "${key}=${value}" >/dev/null 2>&1 || true
+}
 
 # Aborta com uma mensagem de erro no stderr e código de saída 1.
 ovpn_die() {

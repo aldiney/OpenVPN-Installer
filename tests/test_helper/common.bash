@@ -19,6 +19,7 @@ common_setup() {
     export OVPN_PKI_DIR="${OVPN_ETC}/pki"
     export OVPN_CLIENTS_DIR="${OVPN_ETC}/clients"
     export OVPN_HOME_DIR="${BATS_TEST_TMPDIR}/home"
+    export OVPN_SYSCTL_FILE="${BATS_TEST_TMPDIR}/sysctl.conf"
 
     # Onde os stubs registram os argumentos que recebem.
     export STUB_CALLS_DIR="${BATS_TEST_TMPDIR}/calls"
