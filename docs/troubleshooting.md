@@ -44,6 +44,15 @@ Guia rápido para os problemas mais comuns. Mensagens do instalador são sempre 
 - **Clientes não navegam após ativar** — confira a interface WAN informada e se o
   encaminhamento de pacotes está ativo (`net.ipv4.ip_forward=1`). Ao desativar, a regra de
   NAT é removida.
+- **Full-tunnel sem internet (mas `ping` por IP funciona) em host com UFW** — é o caso mais
+  comum: o UFW tem `FORWARD policy DROP` e descarta o tráfego TCP/UDP encaminhado da VPN (só
+  passa ICMP e conexões já estabelecidas). O masquerade existe, mas o pacote morre no filtro
+  FORWARD antes do NAT. Sintoma: sem DNS, sem web, mas `ping <ip>` responde.
+  - **Correção pelo menu**: rode de novo **5 (Ativar saída para a internet)** — o código
+    agora cria `ufw route allow in on tun0 out on <WAN>` e grava o NAT no `before.rules`
+    (persistente, sobrevive ao reboot).
+  - **Manual (equivalente)**: `sudo ufw route allow in on tun0 out on <WAN> && sudo ufw reload`.
+  - Reconecte o cliente e teste `nslookup` / `mtr`.
 
 ## MTU: HTTPS/transferências grandes travando (ping/SSH OK)
 
