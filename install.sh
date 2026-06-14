@@ -10,11 +10,21 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LIB_DIR="${SCRIPT_DIR}/lib"
 
 # Ordem importa: módulos básicos primeiro, depois os de domínio e o controller.
-for module in core log ui os_detect deps pki wizard_ipproto server_config ccd client_profile mikrotik_profile firewall gateway hub_sync dualhub lifecycle controller; do
+for module in core log ui os_detect deps pki wizard_ipproto server_config ccd client_profile mikrotik_profile firewall gateway hub_sync dualhub lifecycle upgrade controller; do
     # shellcheck source=/dev/null
     source "${LIB_DIR}/${module}.sh"
 done
 
 ovpn_require_root
 ovpn_os_assert_supported
+
+# Se a instalação é de uma versão anterior, oferece aplicar as correções.
+if _ovpn_upgrade_should_offer; then
+    ovpn_log_warn "Esta instalação foi feita por uma versão anterior. Há correções disponíveis."
+    if ovpn_ui_confirm "Aplicar as correções agora?"; then
+        ovpn_upgrade_run
+        ovpn_upgrade_report
+    fi
+fi
+
 ovpn_menu_main

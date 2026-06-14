@@ -13,6 +13,8 @@ setup() {
     load_lib wizard_ipproto
     load_lib server_config
     load_lib ccd
+    load_lib firewall
+    load_lib upgrade
     load_lib controller
 }
 
@@ -21,4 +23,5 @@ setup() {
     [ "$status" -eq 0 ]
     [[ "$output" == *"Instalar"* ]]
     [[ "$output" == *"cliente"* ]]
+    [[ "$output" == *"Atualizar"* ]]
 }
