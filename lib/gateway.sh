@@ -19,7 +19,7 @@
 ovpn_gateway_enable() {
     local wan="$1"
     [[ -n "${wan}" ]] || ovpn_die "Informe a interface WAN (ex.: eth0)."
-    sysctl -w net.ipv4.ip_forward=1
+    ovpn_sysctl_set net.ipv4.ip_forward 1
 
     case "$(_ovpn_firewall_backend)" in
         ufw)

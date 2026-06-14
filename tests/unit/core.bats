@@ -49,3 +49,18 @@ setup() {
     run ovpn_require_root
     [ "$status" -eq 0 ]
 }
+
+@test "ovpn_sysctl_set: persiste no sysctl.d e aplica via sysctl" {
+    load_lib core
+    ovpn_sysctl_set net.ipv4.ip_forward 1
+    grep -q 'net.ipv4.ip_forward = 1' "${OVPN_SYSCTL_FILE}"
+    run stub_calls sysctl
+    [[ "$output" == *"net.ipv4.ip_forward=1"* ]]
+}
+
+@test "ovpn_sysctl_set: idempotente (não duplica a chave)" {
+    load_lib core
+    ovpn_sysctl_set net.ipv4.ip_forward 1
+    ovpn_sysctl_set net.ipv4.ip_forward 1
+    [ "$(grep -c 'ip_forward' "${OVPN_SYSCTL_FILE}")" -eq 1 ]
+}

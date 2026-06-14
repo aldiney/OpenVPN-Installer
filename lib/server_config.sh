@@ -50,7 +50,7 @@ ovpn_server_apply_forwarding() {
     local mode="${1:-ipv4}"
     case "${mode}" in
         ipv6|dual)
-            sysctl -w net.ipv6.conf.all.forwarding=1
+            ovpn_sysctl_set net.ipv6.conf.all.forwarding 1
             ;;
     esac
 }
