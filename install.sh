@@ -6,7 +6,9 @@
 #   sudo ./install.sh
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Resolve o caminho real do script (pode ser chamado por um symlink em
+# /usr/local/bin/openvpn-installer — daí precisamos do alvo, não do symlink).
+SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
 LIB_DIR="${SCRIPT_DIR}/lib"
 export OVPN_INSTALL_SH="${SCRIPT_DIR}/install.sh"
 
