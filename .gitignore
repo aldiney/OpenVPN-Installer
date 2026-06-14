@@ -15,7 +15,7 @@
 *.pem
 pki/
 clients/
-
+tmp/
 # Dependências de teste vendorizadas (instaladas via submódulo ou CI)
 tests/test_helper/bats-support/
 tests/test_helper/bats-assert/

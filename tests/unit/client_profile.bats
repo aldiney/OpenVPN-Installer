@@ -12,6 +12,7 @@ setup() {
     load_lib wizard_ipproto
     load_lib server_config
     load_lib ccd
+    load_lib config
     load_lib client_profile
     load_lib controller
 
@@ -41,6 +42,38 @@ setup() {
     [ -f "${OVPN_HOME_DIR}/alice.ovpn" ]
 }
 
+@test "ovpn_client_routing_block full: redirect-gateway + DNS + block-outside-dns" {
+    run ovpn_client_routing_block full
+    [[ "$output" == *"redirect-gateway def1"* ]]
+    [[ "$output" == *"dhcp-option DNS"* ]]
+    [[ "$output" == *"setenv opt block-outside-dns"* ]]
+}
+
+@test "ovpn_client_routing_block split: emite só as rotas informadas" {
+    run ovpn_client_routing_block split "10.0.0.0 255.255.255.0,192.168.1.0 255.255.255.0"
+    [[ "$output" == *"route 10.0.0.0 255.255.255.0"* ]]
+    [[ "$output" == *"route 192.168.1.0 255.255.255.0"* ]]
+    [[ "$output" != *"redirect-gateway"* ]]
+}
+
+@test "ovpn_client_routing_block default: não emite nada" {
+    run ovpn_client_routing_block default
+    [ -z "$output" ]
+}
+
+@test "ovpn_client_create full: .ovpn força tudo pela VPN (redirect-gateway + block-outside-dns)" {
+    ovpn_client_create alice full
+    grep -q "redirect-gateway def1" "${OVPN_CLIENTS_DIR}/alice.ovpn"
+    grep -q "block-outside-dns" "${OVPN_CLIENTS_DIR}/alice.ovpn"
+}
+
+@test "ovpn_client_create: regerar com novo modo atualiza o .ovpn" {
+    ovpn_client_create alice default
+    ! grep -q redirect-gateway "${OVPN_CLIENTS_DIR}/alice.ovpn"
+    ovpn_client_create alice full
+    grep -q redirect-gateway "${OVPN_CLIENTS_DIR}/alice.ovpn"
+}
+
 @test "ovpn_client_create: inclui 'remote' e 'remote-cert-tls server'" {
     ovpn_client_create alice
     local profile="${OVPN_CLIENTS_DIR}/alice.ovpn"
@@ -48,12 +81,14 @@ setup() {
     grep -q "remote-cert-tls server" "${profile}"
 }
 
-@test "ovpn_client_qr: usa o qrencode quando disponível" {
+@test "ovpn_client_qr: salva PNG e mostra versão compacta (UTF8) no terminal" {
     ovpn_client_create alice
     run ovpn_client_qr alice
     [ "$status" -eq 0 ]
+    [ -f "${OVPN_HOME_DIR}/alice.png" ]
     run stub_calls qrencode
-    [[ "$output" == *"ANSIUTF8"* ]]
+    [[ "$output" == *"UTF8"* ]]
+    [[ "$output" == *"-o"* ]]
 }
 
 @test "ovpn_client_qr: pula com aviso quando o qrencode não está disponível" {
@@ -80,6 +115,20 @@ setup() {
 @test "ovpn_action_add_client: nome vazio é recusado" {
     run ovpn_action_add_client ""
     [ "$status" -ne 0 ]
+}
+
+@test "ovpn_action_add_client: escolher full no menu gera .ovpn full-tunnel" {
+    # stdin: '2' (full) + 'n' (não gerar QR)
+    run ovpn_action_add_client zara <<< $'2\nn'
+    [ "$status" -eq 0 ]
+    grep -q "redirect-gateway def1" "${OVPN_CLIENTS_DIR}/zara.ovpn"
+}
+
+@test "_ovpn_ensure_remote_host: pergunta e salva quando não há host" {
+    export OVPN_REMOTE_HOST="${OVPN_REMOTE_HOST_PLACEHOLDER}"
+    run _ovpn_ensure_remote_host <<< "meuhub.exemplo.com"
+    [ "$status" -eq 0 ]
+    [ "$(ovpn_config_get OVPN_REMOTE_HOST)" = "meuhub.exemplo.com" ]
 }
 
 @test "ovpn_client_revoke: remove o ccd e o perfil do cliente" {

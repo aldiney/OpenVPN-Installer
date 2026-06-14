@@ -32,6 +32,13 @@ setup() {
     [ "${a}" != "${b}" ]
 }
 
+@test "ovpn_ccd_assign: 3+ clientes recebem IPs distintos e sequenciais" {
+    [ "$(ovpn_ccd_assign alice)" = "10.8.0.2" ]
+    [ "$(ovpn_ccd_assign bob)"   = "10.8.0.3" ]
+    [ "$(ovpn_ccd_assign carol)" = "10.8.0.4" ]
+    [ "$(ovpn_ccd_assign dave)"  = "10.8.0.5" ]
+}
+
 @test "ovpn_ccd_set_full_tunnel: empurra redirect-gateway e DNS só para o cliente" {
     ovpn_ccd_assign alice >/dev/null
     ovpn_ccd_set_full_tunnel alice
