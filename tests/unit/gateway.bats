@@ -28,6 +28,9 @@ setup() {
     [[ "$output" == *"route allow in on tun0 out on ens3"* ]]
     [[ "$output" == *"reload"* ]]
     grep -q -- '-A POSTROUTING -s 10.8.0.0/24 -o ens3 -j MASQUERADE' "${OVPN_UFW_BEFORE_RULES}"
+    # remove o NAT legado em runtime (evita masquerade duplicado)
+    run stub_calls nft
+    [[ "$output" == *"delete table ip ovpn"* ]]
 }
 
 @test "ovpn_gateway_enable UFW: idempotente (não duplica o NAT)" {

@@ -61,6 +61,10 @@ ovpn_gateway_disable() {
 
 _ovpn_gateway_ufw_enable() {
     local wan="$1"
+    # Remove um NAT legado em runtime (versões antigas usavam 'nft table ip ovpn'),
+    # para não ficar com masquerade DUPLICADO — o que bagunça o de-NAT das
+    # respostas ICMP (traceroute/mtr falham embora a navegação funcione).
+    nft delete table ip ovpn 2>/dev/null || true
     ufw route allow in on "${OVPN_TUN_IFACE}" out on "${wan}"
     _ovpn_gateway_ufw_nat_add "${wan}"
     ufw reload
@@ -68,6 +72,7 @@ _ovpn_gateway_ufw_enable() {
 
 _ovpn_gateway_ufw_disable() {
     local wan="$1"
+    nft delete table ip ovpn 2>/dev/null || true
     ufw route delete allow in on "${OVPN_TUN_IFACE}" out on "${wan}" 2>/dev/null || true
     _ovpn_gateway_ufw_nat_remove "${wan}"
     ufw reload
