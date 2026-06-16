@@ -54,6 +54,17 @@ setup() {
     [ -z "$output" ]
 }
 
+@test "ovpn_action_dualhub_announce: aplica a rota e reinicia o servidor" {
+    mkdir -p "${OVPN_SERVER_DIR}"
+    printf 'dev tun\n' > "$(ovpn_server_conf_path)"
+    run ovpn_action_dualhub_announce <<< $'10.8.0.0\n\ns'
+    [ "$status" -eq 0 ]
+    grep -q 'push "route 10.8.0.0' "$(ovpn_server_conf_path)"
+    run stub_calls systemctl
+    [[ "$output" == *"restart"* ]]
+    [[ "$output" == *"openvpn-server@server"* ]]
+}
+
 @test "ovpn_action_set_host_2: define e persiste o 2º hub" {
     run ovpn_action_set_host_2 <<< "hubB.exemplo.com"
     [ "$status" -eq 0 ]

@@ -245,6 +245,9 @@ ovpn_action_dualhub_register_peer() {
     [[ -n "${name}" && -n "${subnet}" ]] || { ovpn_log_warn "Informe nome e sub-rede."; return 1; }
     ovpn_ui_confirm "Registrar o peer ${name} (sub-rede ${subnet})?" || return 0
     ovpn_dualhub_register_peer "${name}" "${subnet}" "${mask}"
+    # Aplica as rotas recém-adicionadas (o OpenVPN só as lê na inicialização).
+    _ovpn_dualhub_reload_server
+    ovpn_log_ok "Servidor reiniciado para aplicar as rotas do enlace."
 }
 
 # Anuncia aos clientes deste hub a sub-rede do hub par (push-only; usado no hub
@@ -257,13 +260,16 @@ ovpn_action_dualhub_announce() {
     [[ -n "${subnet}" ]] || { ovpn_log_warn "Informe a sub-rede."; return 1; }
     ovpn_ui_confirm "Anunciar ${subnet} (sub-rede do hub par) aos clientes?" || return 0
     ovpn_dualhub_announce "${subnet}" "${mask}"
+    # Aplica o push de rota recém-adicionado (lido só na inicialização).
+    _ovpn_dualhub_reload_server
+    ovpn_log_ok "Servidor reiniciado para aplicar a rota anunciada."
 }
 
 # Ativa o encaminhamento do tráfego inter-hub (no hub que conecta como cliente).
 ovpn_action_dualhub_link_forwarding() {
     local link
-    read -r -p "Interface do enlace (ex.: tun1): " link || return 1
-    [[ -n "${link}" ]] || { ovpn_log_warn "Informe a interface."; return 1; }
+    read -r -p "Interface do enlace [${OVPN_LINK_IFACE}]: " link || return 1
+    [[ -n "${link}" ]] || link="${OVPN_LINK_IFACE}"
     ovpn_ui_confirm "Ativar o encaminhamento inter-hub via ${link} (sem NAT)?" || return 0
     ovpn_dualhub_link_forwarding "${link}"
 }
