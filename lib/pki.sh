@@ -157,16 +157,5 @@ ovpn_pki_revoke_client() {
     _ovpn_pki_gen_crl
     ovpn_log_ok "Certificado de ${name} revogado (CRL atualizada)."
 }
-
-# Exporta a identidade da CA (ca.crt + tls-crypt) num tar.gz.
-ovpn_pki_export_ca() {
-    local bundle="$1"
-    tar czf "${bundle}" -C "${OVPN_PKI_DIR}" ca.crt tls-crypt.key
-}
-
-# Importa a identidade da CA de um tar.gz para o diretório de PKI atual.
-ovpn_pki_import_ca() {
-    local bundle="$1"
-    ovpn_pki_init
-    tar xzf "${bundle}" -C "${OVPN_PKI_DIR}"
-}
+# Para compartilhar a CA entre hubs use o módulo hub_sync (bundle verificável
+# com checksum: ovpn_hub_export / ovpn_hub_export_master / ovpn_hub_import).

@@ -144,24 +144,3 @@ setup() {
     [ -f "$(ovpn_pki_crl_path)" ]
     grep -q alice "${OVPN_PKI_DIR}/revoked.index"
 }
-
-@test "ovpn_pki_export_ca/import_ca: round-trip preserva a identidade da CA" {
-    _ovpn_pki_gen_ca_key()        { printf 'K\n' > "$1"; }
-    _ovpn_pki_gen_ca_cert()       { printf 'CA-IDENTIDADE-XYZ\n' > "$2"; }
-    _ovpn_pki_gen_tls_crypt_key() { printf 'TC\n' > "$1"; }
-    ovpn_pki_build_ca
-    ovpn_pki_gen_tls_crypt
-    local before
-    before="$(sha256sum "${OVPN_PKI_DIR}/ca.crt" | cut -d' ' -f1)"
-
-    local bundle="${BATS_TEST_TMPDIR}/ca-bundle.tar.gz"
-    ovpn_pki_export_ca "${bundle}"
-    [ -f "${bundle}" ]
-
-    # Importa num diretório de PKI diferente (simula o segundo hub).
-    export OVPN_PKI_DIR="${BATS_TEST_TMPDIR}/pki2"
-    ovpn_pki_import_ca "${bundle}"
-    local after
-    after="$(sha256sum "${OVPN_PKI_DIR}/ca.crt" | cut -d' ' -f1)"
-    [ "${before}" = "${after}" ]
-}
