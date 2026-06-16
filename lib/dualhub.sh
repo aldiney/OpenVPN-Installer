@@ -6,7 +6,12 @@
 # aprende e anuncia a rota para a sub-rede do outro, de modo que um cliente do
 # hub A alcance um cliente do hub B. Os perfis de cliente listam os dois hubs
 # como `remote` (ver client_profile, variável OVPN_REMOTE_HOST_2).
-# Depende dos módulos core, log, wizard_ipproto e server_config.
+# O enlace site-to-site usa o mecanismo nativo do OpenVPN: o hub B conecta-se
+# ao hub A como um cliente comum, e a sub-rede do hub B é marcada com `iroute`
+# no ccd do hub A (ver ovpn_dualhub_register_peer). Cada hub também instala e
+# anuncia a rota da sub-rede do outro (ver ovpn_dualhub_configure). Ver ADR 0004.
+# Depende dos módulos core, log, pki, wizard_ipproto, server_config, ccd e
+# client_profile.
 
 : "${OVPN_SUBNET_V4:=10.8.0.0}"
 
@@ -39,4 +44,23 @@ ovpn_dualhub_configure() {
         printf 'push "route %s %s"\n' "${peer_subnet}" "${peer_netmask}" >> "${conf}"
     fi
     ovpn_log_ok "Hub configurado para alcançar a sub-rede ${peer_subnet} do hub par."
+}
+
+# Registra o hub par como peer DESTE hub (que age como ponto de encontro do
+# enlace). Roda no hub A: emite o perfil de conexão do peer (.ovpn que o hub B
+# usará para conectar aqui), fixa o IP, marca a sub-rede do peer com iroute
+# (para o OpenVPN rotear até ele) e instala/anuncia a rota dessa sub-rede.
+# O perfil sai com um único `remote` (o hub A) mesmo que haja 2º host definido.
+ovpn_dualhub_register_peer() {
+    local name="$1" peer_subnet="$2" peer_netmask="${3:-255.255.255.0}"
+    [[ -n "${name}" ]] || ovpn_die "Informe o nome do peer (ex.: hub-b)."
+    ovpn_dualhub_validate_subnets "${OVPN_SUBNET_V4}" "${peer_subnet}"
+
+    # O enlace conecta especificamente ao hub A — sem 2º remote nem remote-random.
+    ( unset OVPN_REMOTE_HOST_2; ovpn_client_create "${name}" >/dev/null )
+
+    ovpn_ccd_set_iroute "${name}" "${peer_subnet}" "${peer_netmask}"
+    ovpn_dualhub_configure "${peer_subnet}" "${peer_netmask}"
+
+    ovpn_log_ok "Peer ${name} registrado (sub-rede ${peer_subnet} via iroute). Leve o perfil $(ovpn_client_profile_path "${name}") para o hub par."
 }

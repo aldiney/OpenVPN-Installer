@@ -46,6 +46,38 @@ setup() {
     grep -q 'push "route 10.8.1.0 255.255.255.0"' "${conf}"
 }
 
+@test "ovpn_dualhub_register_peer: gera o perfil do peer, marca iroute e instala a rota" {
+    mkdir -p "${OVPN_SERVER_DIR}"
+    printf 'dev tun\n' > "$(ovpn_server_conf_path)"
+    export OVPN_SUBNET_V4=10.8.0.0
+    run ovpn_dualhub_register_peer hub-b 10.8.1.0 255.255.255.0
+    [ "$status" -eq 0 ]
+    [ -f "${OVPN_CLIENTS_DIR}/hub-b.ovpn" ]
+    grep -q 'iroute 10.8.1.0 255.255.255.0' "${OVPN_SERVER_DIR}/ccd/hub-b"
+    grep -q '^route 10.8.1.0 255.255.255.0' "$(ovpn_server_conf_path)"
+    grep -q 'push "route 10.8.1.0 255.255.255.0"' "$(ovpn_server_conf_path)"
+}
+
+@test "ovpn_dualhub_register_peer: o perfil do peer aponta só para o hub A (sem 2º remote)" {
+    mkdir -p "${OVPN_SERVER_DIR}"
+    printf 'dev tun\n' > "$(ovpn_server_conf_path)"
+    export OVPN_SUBNET_V4=10.8.0.0
+    export OVPN_REMOTE_HOST=hubA.exemplo.com
+    export OVPN_REMOTE_HOST_2=hubB.exemplo.com
+    ovpn_dualhub_register_peer hub-b 10.8.1.0 255.255.255.0
+    local prof="${OVPN_CLIENTS_DIR}/hub-b.ovpn"
+    grep -q 'remote hubA.exemplo.com' "${prof}"
+    ! grep -q 'remote hubB.exemplo.com' "${prof}"
+}
+
+@test "ovpn_dualhub_register_peer: recusa sub-rede do peer igual à local" {
+    mkdir -p "${OVPN_SERVER_DIR}"
+    printf 'dev tun\n' > "$(ovpn_server_conf_path)"
+    export OVPN_SUBNET_V4=10.8.0.0
+    run ovpn_dualhub_register_peer hub-b 10.8.0.0
+    [ "$status" -ne 0 ]
+}
+
 @test "client_profile: com dois hubs, o .ovpn lista os dois remote" {
     export OVPN_REMOTE_HOST_2="hubB.exemplo.com"
     ovpn_client_create alice

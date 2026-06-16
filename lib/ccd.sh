@@ -58,6 +58,20 @@ ovpn_ccd_assign() {
     printf '%s' "${ip}"
 }
 
+# Marca a sub-rede que fica ATRÁS de um peer (um hub conectado como cliente),
+# via iroute no ccd — o OpenVPN passa a rotear essa sub-rede para a conexão dele
+# (base do enlace site-to-site por cliente+iroute). Idempotente.
+ovpn_ccd_set_iroute() {
+    local name="$1" subnet="$2" netmask="${3:-255.255.255.0}"
+    local file
+    file="$(ovpn_ccd_dir)/${name}"
+    mkdir -p "$(ovpn_ccd_dir)"
+    if awk -v p="iroute ${subnet} ${netmask}" 'index($0, p) { f = 1 } END { exit !f }' "${file}" 2>/dev/null; then
+        return 0
+    fi
+    printf 'iroute %s %s\n' "${subnet}" "${netmask}" >> "${file}"
+}
+
 # Marca um cliente como "full-tunnel": empurra a rota padrão e DNS apenas para
 # ele (via ccd). Assim, só os clientes marcados saem pela internet do hub; os
 # demais ficam em split-tunnel (usam a própria internet). Idempotente.

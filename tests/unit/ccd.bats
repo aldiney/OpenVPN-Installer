@@ -22,6 +22,15 @@ setup() {
     grep -q "ifconfig-push 10.8.9.2 " "${OVPN_SERVER_DIR}/ccd/alice"
 }
 
+@test "ovpn_ccd_set_iroute: marca a sub-rede atrás do peer (idempotente)" {
+    ovpn_ccd_assign hub-b >/dev/null
+    ovpn_ccd_set_iroute hub-b 10.8.1.0 255.255.255.0
+    ovpn_ccd_set_iroute hub-b 10.8.1.0 255.255.255.0
+    local f="${OVPN_SERVER_DIR}/ccd/hub-b"
+    grep -q 'iroute 10.8.1.0 255.255.255.0' "${f}"
+    [ "$(grep -c 'iroute' "${f}")" -eq 1 ]
+}
+
 @test "ovpn_ccd_assign: cria a entrada do cliente com IP fixo (ifconfig-push)" {
     run ovpn_ccd_assign alice
     [ "$status" -eq 0 ]
