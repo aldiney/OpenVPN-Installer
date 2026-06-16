@@ -203,6 +203,98 @@ ovpn_action_status() {
     ovpn_client_list
 }
 
+# --- Dois hubs (ativo-ativo) ---------------------------------------------
+# Cada ação confirma antes de tocar o sistema (CLAUDE.md).
+
+# Exporta a CA MESTRA (inclui a chave privada) para o hub par emitir certs.
+ovpn_action_hub_export_master() {
+    local out
+    read -r -p "Arquivo de saída do bundle MESTRA (ex.: /root/ca-mestra.tar.gz): " out || return 1
+    [[ -n "${out}" ]] || { ovpn_log_warn "Caminho vazio."; return 1; }
+    ovpn_log_warn "O bundle MESTRA contém a CHAVE PRIVADA da CA — compartilhe só com um hub plenamente confiável."
+    ovpn_ui_confirm "Exportar a CA mestra para ${out}?" || return 0
+    ovpn_hub_export_master "${out}"
+}
+
+# Exporta só a identidade pública da CA (ca.crt + tls-crypt), sem a chave.
+ovpn_action_hub_export() {
+    local out
+    read -r -p "Arquivo de saída do bundle público (ex.: /root/ca.tar.gz): " out || return 1
+    [[ -n "${out}" ]] || { ovpn_log_warn "Caminho vazio."; return 1; }
+    ovpn_ui_confirm "Exportar a identidade pública da CA para ${out}?" || return 0
+    ovpn_hub_export "${out}"
+}
+
+# Importa a CA de um bundle (substitui a CA local).
+ovpn_action_hub_import() {
+    local in
+    read -r -p "Arquivo do bundle a importar: " in || return 1
+    [[ -f "${in}" ]] || { ovpn_log_warn "Arquivo não encontrado: ${in}"; return 1; }
+    ovpn_log_warn "Importar substitui a CA local pela do bundle."
+    ovpn_ui_confirm "Importar a CA de ${in}?" || return 0
+    ovpn_hub_import "${in}"
+}
+
+# Registra o hub par (no hub A): emite o perfil do enlace, marca iroute e rota.
+ovpn_action_dualhub_register_peer() {
+    local name subnet mask
+    read -r -p "Nome do hub par (ex.: hub-b): " name || return 1
+    read -r -p "Sub-rede do hub par (ex.: 10.8.1.0): " subnet || return 1
+    read -r -p "Máscara [255.255.255.0]: " mask || true
+    [[ -n "${mask}" ]] || mask="255.255.255.0"
+    [[ -n "${name}" && -n "${subnet}" ]] || { ovpn_log_warn "Informe nome e sub-rede."; return 1; }
+    ovpn_ui_confirm "Registrar o peer ${name} (sub-rede ${subnet})?" || return 0
+    ovpn_dualhub_register_peer "${name}" "${subnet}" "${mask}"
+}
+
+# Configura a rota para a sub-rede do hub par (usado no hub que conecta).
+ovpn_action_dualhub_configure() {
+    local subnet mask
+    read -r -p "Sub-rede do hub par a alcançar (ex.: 10.8.0.0): " subnet || return 1
+    read -r -p "Máscara [255.255.255.0]: " mask || true
+    [[ -n "${mask}" ]] || mask="255.255.255.0"
+    [[ -n "${subnet}" ]] || { ovpn_log_warn "Informe a sub-rede."; return 1; }
+    ovpn_ui_confirm "Adicionar rota para ${subnet} (sub-rede do hub par)?" || return 0
+    ovpn_dualhub_configure "${subnet}" "${mask}"
+}
+
+# Ativa o encaminhamento do tráfego inter-hub (no hub que conecta como cliente).
+ovpn_action_dualhub_link_forwarding() {
+    local link
+    read -r -p "Interface do enlace (ex.: tun1): " link || return 1
+    [[ -n "${link}" ]] || { ovpn_log_warn "Informe a interface."; return 1; }
+    ovpn_ui_confirm "Ativar o encaminhamento inter-hub via ${link} (sem NAT)?" || return 0
+    ovpn_dualhub_link_forwarding "${link}"
+}
+
+# Submenu do dual-hub ativo-ativo.
+ovpn_menu_dualhub() {
+    local choice
+    while true; do
+        ovpn_ui_menu "Dois hubs (ativo-ativo)" \
+            "Exportar CA mestra (inclui a chave; leve ao hub par)" \
+            "Exportar identidade pública da CA (sem a chave)" \
+            "Importar CA de um bundle" \
+            "Registrar hub par (enlace + iroute) — no hub A" \
+            "Configurar rota para a sub-rede do hub par" \
+            "Ativar encaminhamento do enlace (no hub que conecta)" \
+            "Definir/alterar o 2º hub dos clientes (failover)"
+        printf '0. Voltar\n'
+        read -r -p "Escolha uma opção: " choice || return 0
+        case "${choice}" in
+            1) ovpn_action_hub_export_master ;;
+            2) ovpn_action_hub_export ;;
+            3) ovpn_action_hub_import ;;
+            4) ovpn_action_dualhub_register_peer ;;
+            5) ovpn_action_dualhub_configure ;;
+            6) ovpn_action_dualhub_link_forwarding ;;
+            7) ovpn_action_set_host_2 ;;
+            0) return 0 ;;
+            *) ovpn_log_warn "Opção inválida." ;;
+        esac
+    done
+}
+
 # Laço principal do menu interativo.
 ovpn_menu_main() {
     local choice name mode
@@ -222,7 +314,8 @@ ovpn_menu_main() {
             "Atualizar/migrar instalação" \
             "Regerar perfil de um cliente" \
             "Alterar host/IP do hub" \
-            "Instalar comando no PATH"
+            "Instalar comando no PATH" \
+            "Dois hubs (ativo-ativo)"
         printf '0. Sair\n'
         read -r -p "Escolha uma opção: " choice || return 0
         case "${choice}" in
@@ -250,6 +343,7 @@ ovpn_menu_main() {
             12) ovpn_action_regen_client ;;
             13) ovpn_action_set_host ;;
             14) ovpn_action_install_path ;;
+            15) ovpn_menu_dualhub ;;
             0) return 0 ;;
             *) ovpn_log_warn "Opção inválida." ;;
         esac
