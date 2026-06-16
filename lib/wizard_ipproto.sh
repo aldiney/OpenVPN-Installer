@@ -45,6 +45,24 @@ ovpn_wizard_ipproto() {
     esac
 }
 
+# Pergunta a rede da VPN (/24) e persiste. Mantém o atual se a entrada for
+# vazia ou inválida. Também fixa o prefixo derivado, deixando os dois
+# consistentes (a sub-rede vira o `server`; o prefixo, os IPs fixos do ccd).
+# Permite que o hub B use uma sub-rede distinta sem exportar variáveis na mão.
+ovpn_wizard_choose_subnet() {
+    local input
+    read -r -p "Rede da VPN (/24, formato x.x.x.0) [${OVPN_SUBNET_V4}]: " input || true
+    [[ -n "${input}" ]] || return 0
+    if [[ ! "${input}" =~ ^([0-9]{1,3}\.){3}0$ ]]; then
+        ovpn_log_warn "Sub-rede inválida (use o formato x.x.x.0); mantendo ${OVPN_SUBNET_V4}."
+        return 0
+    fi
+    export OVPN_SUBNET_V4="${input}"
+    export OVPN_VPN_PREFIX_V4="${input%.*}"
+    ovpn_config_set OVPN_SUBNET_V4 "${input}"
+    ovpn_log_ok "Rede da VPN definida: ${OVPN_SUBNET_V4}/24"
+}
+
 # Pergunta ao operador o modo de IP e devolve 'ipv4', 'ipv6' ou 'dual'.
 ovpn_wizard_choose_mode() {
     local choice

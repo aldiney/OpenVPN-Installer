@@ -200,6 +200,7 @@ ovpn_menu_main() {
         read -r -p "Escolha uma opção: " choice || return 0
         case "${choice}" in
             1)
+                ovpn_wizard_choose_subnet
                 mode="$(ovpn_wizard_choose_mode)"
                 ovpn_action_install_hub "${mode}"
                 ;;

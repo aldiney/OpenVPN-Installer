@@ -4,8 +4,14 @@
 # Depende do módulo core.
 
 : "${OVPN_NETMASK_V4:=255.255.255.0}"
-# Prefixo /24 da rede da VPN (os hosts vão de .2 a .254; .1 é o servidor).
-: "${OVPN_VPN_PREFIX_V4:=10.8.0}"
+: "${OVPN_SUBNET_V4:=10.8.0.0}"
+
+# Prefixo /24 (3 primeiros octetos) de uma sub-rede x.x.x.0.
+ovpn_vpn_prefix() { printf '%s' "${1%.*}"; }
+
+# Prefixo da rede da VPN, derivado da sub-rede (mantém os dois consistentes;
+# os hosts vão de .2 a .254; .1 é o servidor).
+: "${OVPN_VPN_PREFIX_V4:=$(ovpn_vpn_prefix "${OVPN_SUBNET_V4}")}"
 # DNS empurrado aos clientes full-tunnel (para resolverem nomes pela VPN).
 : "${OVPN_FULL_TUNNEL_DNS:=1.1.1.1 8.8.8.8}"
 

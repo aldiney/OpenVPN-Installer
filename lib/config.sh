@@ -13,6 +13,24 @@ ovpn_config_get() {
     awk -F= -v k="${key}" '$1==k { sub(/^[^=]*=/, ""); print; exit }' "${file}"
 }
 
+# Carrega no ambiente as preferências persistidas (sub-rede da VPN e hosts do
+# hub), para que os módulos as usem sem precisar exportar variáveis na mão. A
+# sub-rede também fixa o prefixo /24 derivado, mantendo os dois consistentes.
+# Chamado no startup do install.sh.
+ovpn_config_apply() {
+    local v
+    v="$(ovpn_config_get OVPN_SUBNET_V4)"
+    if [[ -n "${v}" ]]; then
+        export OVPN_SUBNET_V4="${v}"
+        export OVPN_VPN_PREFIX_V4="${v%.*}"
+    fi
+    v="$(ovpn_config_get OVPN_REMOTE_HOST)"
+    if [[ -n "${v}" ]]; then export OVPN_REMOTE_HOST="${v}"; fi
+    v="$(ovpn_config_get OVPN_REMOTE_HOST_2)"
+    if [[ -n "${v}" ]]; then export OVPN_REMOTE_HOST_2="${v}"; fi
+    return 0
+}
+
 # Define/atualiza uma chave (idempotente, sem duplicar).
 ovpn_config_set() {
     local key="$1" value="$2" file tmp
