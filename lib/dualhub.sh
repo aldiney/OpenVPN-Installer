@@ -10,10 +10,11 @@
 # ao hub A como um cliente comum, e a sub-rede do hub B é marcada com `iroute`
 # no ccd do hub A (ver ovpn_dualhub_register_peer). Cada hub também instala e
 # anuncia a rota da sub-rede do outro (ver ovpn_dualhub_configure). Ver ADR 0004.
-# Depende dos módulos core, log, pki, wizard_ipproto, server_config, ccd e
-# client_profile.
+# Depende dos módulos core, log, pki, wizard_ipproto, server_config, ccd,
+# client_profile e firewall.
 
 : "${OVPN_SUBNET_V4:=10.8.0.0}"
+: "${OVPN_TUN_IFACE:=tun0}"
 
 # Verdadeiro (0) se as sub-redes /24 dos dois hubs NÃO se sobrepõem.
 ovpn_dualhub_validate_subnets() {
@@ -63,4 +64,32 @@ ovpn_dualhub_register_peer() {
     ovpn_dualhub_configure "${peer_subnet}" "${peer_netmask}"
 
     ovpn_log_ok "Peer ${name} registrado (sub-rede ${peer_subnet} via iroute). Leve o perfil $(ovpn_client_profile_path "${name}") para o hub par."
+}
+
+# Habilita o encaminhamento do tráfego inter-hub no hub que conecta como cliente
+# (tipicamente o hub B): o tráfego dos clientes (tun dos clientes) para o enlace
+# é um forward de kernel. Habilita e PERSISTE o ip_forward e, em UFW (FORWARD
+# DROP), libera o forward BIDIRECIONAL entre os clientes e o enlace. NUNCA aplica
+# NAT — o tráfego inter-hub preserva os IPs reais da VPN (cada cliente enxerga o
+# outro pelo IP de verdade). A porta do enlace não precisa ser aberta: o hub
+# conecta para fora, no servidor já existente do hub par. <link> = interface do
+# enlace (ex.: tun1, a que o openvpn-client do enlace cria).
+ovpn_dualhub_link_forwarding() {
+    local link="$1"
+    [[ -n "${link}" ]] || ovpn_die "Informe a interface do enlace (ex.: tun1)."
+    ovpn_sysctl_set net.ipv4.ip_forward 1
+
+    case "$(_ovpn_firewall_backend)" in
+        ufw)
+            ufw route allow in on "${OVPN_TUN_IFACE}" out on "${link}"
+            ufw route allow in on "${link}" out on "${OVPN_TUN_IFACE}"
+            ufw reload
+            ;;
+        *)
+            # nft/iptables: a política de FORWARD costuma ser ACCEPT; o
+            # ip_forward persistido já basta. Nunca NATear o tráfego inter-hub.
+            ovpn_log_info "Encaminhamento inter-hub por ip_forward (sem regra extra de FORWARD; sem NAT)."
+            ;;
+    esac
+    ovpn_log_ok "Encaminhamento inter-hub ativado entre ${OVPN_TUN_IFACE} e ${link} (sem NAT)."
 }
