@@ -42,6 +42,51 @@ setup() {
     [ "${before}" = "${after}" ]
 }
 
+@test "ovpn_hub_export_master: o bundle inclui a ca.key (CA mestra)" {
+    local bundle="${BATS_TEST_TMPDIR}/m.tar.gz"
+    ovpn_hub_export_master "${bundle}"
+    run tar tzf "${bundle}"
+    [[ "$output" == *"ca.key"* ]]
+    [[ "$output" == *"ca.crt"* ]]
+    [[ "$output" == *"tls-crypt.key"* ]]
+}
+
+@test "ovpn_hub_export: NÃO inclui a ca.key (só a identidade pública da CA)" {
+    local bundle="${BATS_TEST_TMPDIR}/p.tar.gz"
+    ovpn_hub_export "${bundle}"
+    run tar tzf "${bundle}"
+    [[ "$output" != *"ca.key"* ]]
+}
+
+@test "ovpn_hub_export_master/import: o hub B recebe a ca.key idêntica" {
+    local bundle="${BATS_TEST_TMPDIR}/m.tar.gz"
+    ovpn_hub_export_master "${bundle}"
+    local before
+    before="$(sha256sum "$(ovpn_pki_ca_key)" | cut -d' ' -f1)"
+
+    export OVPN_PKI_DIR="${BATS_TEST_TMPDIR}/pkiB"
+    ovpn_hub_import "${bundle}"
+    [ -f "$(ovpn_pki_ca_key)" ]
+    local after
+    after="$(sha256sum "$(ovpn_pki_ca_key)" | cut -d' ' -f1)"
+    [ "${before}" = "${after}" ]
+}
+
+@test "ovpn_hub_import: recusa bundle mestra com a ca.key adulterada" {
+    local bundle="${BATS_TEST_TMPDIR}/m.tar.gz"
+    ovpn_hub_export_master "${bundle}"
+
+    local t="${BATS_TEST_TMPDIR}/tamper"
+    mkdir -p "${t}"
+    tar xzf "${bundle}" -C "${t}"
+    printf 'ROUBADA\n' > "${t}/ca.key"
+    ( cd "${t}" && tar czf "${bundle}" ca.crt ca.key tls-crypt.key manifest checksum.sha256 )
+
+    export OVPN_PKI_DIR="${BATS_TEST_TMPDIR}/pkiX"
+    run ovpn_hub_import "${bundle}"
+    [ "$status" -ne 0 ]
+}
+
 @test "ovpn_hub_import: recusa bundle adulterado (checksum inválido)" {
     local bundle="${BATS_TEST_TMPDIR}/b.tar.gz"
     ovpn_hub_export "${bundle}"
