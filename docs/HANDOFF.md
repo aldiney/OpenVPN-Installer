@@ -8,8 +8,11 @@ Estado do projeto para retomar de qualquer máquina. (Repo público — este doc
 - **Objetivo entregue e validado em host real:** rede única (hub-and-spoke com
   `client-to-client`) + **saída para a internet pela VPN funcionando** (full-tunnel IPv4),
   **persistente no reboot**. Cliente Windows conecta, navega e o `mtr` completa pela VPN.
-- **Operando com UM hub** por enquanto (dual-hub está implementado, mas não em uso).
-- **135 testes (bats) verdes, shellcheck limpo, CI verde.** Repo público.
+- **Operando com UM hub** em produção; o **dual-hub ativo-ativo foi reconstruído de verdade**
+  (ADR 0004 — enlace "hub B conecta no hub A como cliente, via `iroute`"; submenu opção 15;
+  rede da VPN configurável; CA mestra com `ca.key`; interface fixa `ovpn-link`). Falta a
+  **validação HITL em 2 máquinas** (#54) — guia em `docs/dual-hub.md` e `validacao-hitl` T6.
+- **169 testes (bats) verdes, shellcheck limpo, CI verde.** Repo público.
 
 ## Como rodar / desenvolver
 
@@ -69,9 +72,11 @@ Docs: `docs/{prd,howto,mikrotik-guide,dual-hub,troubleshooting,validacao-hitl}.m
 
 ## Pendências
 
+- **[#54] Dual-hub HITL** — código pronto e revisado (revisão adversarial multi-agente);
+  falta validar em **2 máquinas** seguindo `docs/dual-hub.md`.
 - **[#44] Full-tunnel IPv6** — aberta, adiada. Hoje o IPv6 do cliente sai pela rede dele.
-- Validações HITL opcionais ainda não feitas: **MikroTik** real, **dual-hub** (2 servidores),
-  **bootstrap** em VM limpa, **mesh** entre 2 dispositivos.
+- Outras validações HITL ainda não feitas: **MikroTik** real, **bootstrap** em VM limpa,
+  **mesh** entre 2 dispositivos.
 - Fora do escopo do instalador: lentidão do DNS reverso no WSL (client-side).
 
 ## Como continuar (de outra máquina)
