@@ -21,6 +21,9 @@ done
 ovpn_require_root
 ovpn_os_assert_supported
 
+# Carrega as preferências persistidas (sub-rede da VPN, hosts do hub) no ambiente.
+ovpn_config_apply
+
 # Se a instalação é de uma versão anterior, oferece aplicar as correções.
 if _ovpn_upgrade_should_offer; then
     ovpn_log_warn "Esta instalação foi feita por uma versão anterior. Há correções disponíveis."

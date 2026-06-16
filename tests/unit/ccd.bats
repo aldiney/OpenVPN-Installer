@@ -10,6 +10,18 @@ setup() {
     load_lib ccd
 }
 
+@test "ovpn_vpn_prefix: deriva o prefixo /24 (3 primeiros octetos) da sub-rede" {
+    [ "$(ovpn_vpn_prefix 10.8.0.0)" = "10.8.0" ]
+    [ "$(ovpn_vpn_prefix 192.168.50.0)" = "192.168.50" ]
+}
+
+@test "ovpn_ccd_assign: respeita o prefixo configurado (rede da VPN escolhida)" {
+    export OVPN_VPN_PREFIX_V4=10.8.9
+    run ovpn_ccd_assign alice
+    [ "$status" -eq 0 ]
+    grep -q "ifconfig-push 10.8.9.2 " "${OVPN_SERVER_DIR}/ccd/alice"
+}
+
 @test "ovpn_ccd_assign: cria a entrada do cliente com IP fixo (ifconfig-push)" {
     run ovpn_ccd_assign alice
     [ "$status" -eq 0 ]

@@ -7,6 +7,8 @@ load ../test_helper/common
 setup() {
     common_setup
     load_lib core
+    load_lib log
+    load_lib config
     load_lib wizard_ipproto
 }
 
@@ -47,4 +49,26 @@ setup() {
 @test "ovpn_wizard_ipproto: modo não suportado aborta" {
     run ovpn_wizard_ipproto ipv9
     [ "$status" -ne 0 ]
+}
+
+@test "ovpn_wizard_choose_subnet: entrada válida define e persiste a sub-rede" {
+    run ovpn_wizard_choose_subnet <<< "10.8.4.0"
+    [ "$status" -eq 0 ]
+    [ "$(ovpn_config_get OVPN_SUBNET_V4)" = "10.8.4.0" ]
+}
+
+@test "ovpn_wizard_choose_subnet: define no ambiente a sub-rede e o prefixo derivado" {
+    ovpn_wizard_choose_subnet <<< "172.20.5.0"
+    [ "${OVPN_SUBNET_V4}" = "172.20.5.0" ]
+    [ "${OVPN_VPN_PREFIX_V4}" = "172.20.5" ]
+}
+
+@test "ovpn_wizard_choose_subnet: entrada vazia mantém o padrão" {
+    ovpn_wizard_choose_subnet <<< ""
+    [ "${OVPN_SUBNET_V4}" = "10.8.0.0" ]
+}
+
+@test "ovpn_wizard_choose_subnet: entrada inválida mantém a sub-rede atual" {
+    ovpn_wizard_choose_subnet <<< "banana"
+    [ "${OVPN_SUBNET_V4}" = "10.8.0.0" ]
 }
