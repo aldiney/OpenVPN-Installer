@@ -14,7 +14,10 @@ setup() {
     load_lib wizard_ipproto
     load_lib server_config
     load_lib ccd
+    load_lib client_profile
     load_lib firewall
+    load_lib hub_sync
+    load_lib dualhub
     load_lib upgrade
     load_lib controller
 }
@@ -25,6 +28,30 @@ setup() {
     [[ "$output" == *"Instalar"* ]]
     [[ "$output" == *"cliente"* ]]
     [[ "$output" == *"Atualizar"* ]]
+}
+
+@test "ovpn_menu_main: opção 15 abre o submenu Dois hubs" {
+    run ovpn_menu_main <<< $'15\n0\n0'
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"Dois hubs (ativo-ativo)"* ]]
+    [[ "$output" == *"Exportar CA mestra"* ]]
+    [[ "$output" == *"Registrar hub par"* ]]
+}
+
+@test "ovpn_action_dualhub_link_forwarding: confirma (s) e ativa o encaminhamento" {
+    _ovpn_firewall_backend() { printf 'ufw'; }
+    run ovpn_action_dualhub_link_forwarding <<< $'tun1\ns'
+    [ "$status" -eq 0 ]
+    run stub_calls ufw
+    [[ "$output" == *"route allow in on tun0 out on tun1"* ]]
+}
+
+@test "ovpn_action_dualhub_link_forwarding: recusa (n) não toca o firewall" {
+    _ovpn_firewall_backend() { printf 'ufw'; }
+    run ovpn_action_dualhub_link_forwarding <<< $'tun1\nn'
+    [ "$status" -eq 0 ]
+    run stub_calls ufw
+    [ -z "$output" ]
 }
 
 @test "ovpn_action_set_host_2: define e persiste o 2º hub" {
