@@ -87,6 +87,28 @@ setup() {
     [ "$status" -ne 0 ]
 }
 
+@test "ovpn_hub_import: bundle mestra invalida o cert de servidor antigo (força reemissão)" {
+    local bundle="${BATS_TEST_TMPDIR}/m.tar.gz"
+    ovpn_hub_export_master "${bundle}"
+
+    export OVPN_PKI_DIR="${BATS_TEST_TMPDIR}/pkiB"
+    mkdir -p "${OVPN_PKI_DIR}/issued" "${OVPN_PKI_DIR}/private"
+    printf 'CERT-ANTIGO\n' > "${OVPN_PKI_DIR}/issued/server.crt"
+    printf 'KEY-ANTIGA\n'  > "${OVPN_PKI_DIR}/private/server.key"
+    ovpn_hub_import "${bundle}"
+    [ ! -f "${OVPN_PKI_DIR}/issued/server.crt" ]
+    [ ! -f "${OVPN_PKI_DIR}/private/server.key" ]
+}
+
+@test "ovpn_hub_import: bundle público avisa que o hub não pode emitir certs" {
+    local bundle="${BATS_TEST_TMPDIR}/p.tar.gz"
+    ovpn_hub_export "${bundle}"
+    export OVPN_PKI_DIR="${BATS_TEST_TMPDIR}/pkiP"
+    run ovpn_hub_import "${bundle}"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"NÃO pode emitir"* ]]
+}
+
 @test "ovpn_hub_import: recusa bundle adulterado (checksum inválido)" {
     local bundle="${BATS_TEST_TMPDIR}/b.tar.gz"
     ovpn_hub_export "${bundle}"

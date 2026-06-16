@@ -127,6 +127,27 @@ setup() {
     [ -f "${OVPN_PKI_DIR}/issued/server.crt" ]
 }
 
+@test "_ovpn_pki_issue: aborta se a CA não tem chave privada (bundle público)" {
+    _ovpn_pki_gen_entity_key() { printf 'EK\n' > "$1"; }
+    _ovpn_pki_sign_entity()    { printf 'SIGNED\n' > "$2"; }
+    ovpn_pki_init
+    printf 'CA-CERT\n' > "$(ovpn_pki_ca_cert)"   # CA só com cert público, sem ca.key
+    run ovpn_pki_issue_server server
+    [ "$status" -ne 0 ]
+}
+
+@test "_ovpn_pki_issue: cert de 0 byte é tratado como não-emitido (reemite)" {
+    _ovpn_pki_gen_ca_key()     { printf 'K\n' > "$1"; }
+    _ovpn_pki_gen_ca_cert()    { printf 'CA\n' > "$2"; }
+    _ovpn_pki_gen_entity_key() { printf 'EK\n' > "$1"; }
+    _ovpn_pki_sign_entity()    { printf 'SIGNED\n' > "$2"; }
+    ovpn_pki_build_ca
+    mkdir -p "${OVPN_PKI_DIR}/issued"
+    : > "${OVPN_PKI_DIR}/issued/server.crt"   # resquício de 0 byte
+    ovpn_pki_issue_server server
+    [ "$(cat "${OVPN_PKI_DIR}/issued/server.crt")" = "SIGNED" ]
+}
+
 @test "_ovpn_pki_ext_content: servidor tem keyUsage + serverAuth; cliente tem clientAuth" {
     run _ovpn_pki_ext_content server
     [[ "$output" == *"keyUsage=digitalSignature,keyEncipherment"* ]]
