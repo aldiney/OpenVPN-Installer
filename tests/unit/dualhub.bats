@@ -46,6 +46,23 @@ setup() {
     grep -q 'push "route 10.8.1.0 255.255.255.0"' "${conf}"
 }
 
+@test "ovpn_dualhub_announce: só faz push da rota (sem rota de kernel local)" {
+    mkdir -p "${OVPN_SERVER_DIR}"
+    printf 'dev tun\n' > "$(ovpn_server_conf_path)"
+    run ovpn_dualhub_announce 10.8.0.0 255.255.255.0
+    [ "$status" -eq 0 ]
+    grep -q 'push "route 10.8.0.0 255.255.255.0"' "$(ovpn_server_conf_path)"
+    ! grep -qE '^route 10.8.0.0' "$(ovpn_server_conf_path)"
+}
+
+@test "ovpn_dualhub_announce: idempotente (não duplica o push)" {
+    mkdir -p "${OVPN_SERVER_DIR}"
+    printf 'dev tun\n' > "$(ovpn_server_conf_path)"
+    ovpn_dualhub_announce 10.8.0.0 255.255.255.0
+    ovpn_dualhub_announce 10.8.0.0 255.255.255.0
+    [ "$(grep -c 'push "route 10.8.0.0' "$(ovpn_server_conf_path)")" -eq 1 ]
+}
+
 @test "ovpn_dualhub_register_peer: gera o perfil do peer, marca iroute e instala a rota" {
     mkdir -p "${OVPN_SERVER_DIR}"
     printf 'dev tun\n' > "$(ovpn_server_conf_path)"

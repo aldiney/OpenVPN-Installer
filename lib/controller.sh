@@ -247,15 +247,16 @@ ovpn_action_dualhub_register_peer() {
     ovpn_dualhub_register_peer "${name}" "${subnet}" "${mask}"
 }
 
-# Configura a rota para a sub-rede do hub par (usado no hub que conecta).
-ovpn_action_dualhub_configure() {
+# Anuncia aos clientes deste hub a sub-rede do hub par (push-only; usado no hub
+# que CONECTA — a rota de kernel para o par já vem pelo enlace).
+ovpn_action_dualhub_announce() {
     local subnet mask
-    read -r -p "Sub-rede do hub par a alcançar (ex.: 10.8.0.0): " subnet || return 1
+    read -r -p "Sub-rede do hub par a anunciar (ex.: 10.8.0.0): " subnet || return 1
     read -r -p "Máscara [255.255.255.0]: " mask || true
     [[ -n "${mask}" ]] || mask="255.255.255.0"
     [[ -n "${subnet}" ]] || { ovpn_log_warn "Informe a sub-rede."; return 1; }
-    ovpn_ui_confirm "Adicionar rota para ${subnet} (sub-rede do hub par)?" || return 0
-    ovpn_dualhub_configure "${subnet}" "${mask}"
+    ovpn_ui_confirm "Anunciar ${subnet} (sub-rede do hub par) aos clientes?" || return 0
+    ovpn_dualhub_announce "${subnet}" "${mask}"
 }
 
 # Ativa o encaminhamento do tráfego inter-hub (no hub que conecta como cliente).
@@ -276,7 +277,7 @@ ovpn_menu_dualhub() {
             "Exportar identidade pública da CA (sem a chave)" \
             "Importar CA de um bundle" \
             "Registrar hub par (enlace + iroute) — no hub A" \
-            "Configurar rota para a sub-rede do hub par" \
+            "Anunciar a sub-rede do hub par aos clientes — no hub B" \
             "Ativar encaminhamento do enlace (no hub que conecta)" \
             "Definir/alterar o 2º hub dos clientes (failover)"
         printf '0. Voltar\n'
@@ -286,7 +287,7 @@ ovpn_menu_dualhub() {
             2) ovpn_action_hub_export ;;
             3) ovpn_action_hub_import ;;
             4) ovpn_action_dualhub_register_peer ;;
-            5) ovpn_action_dualhub_configure ;;
+            5) ovpn_action_dualhub_announce ;;
             6) ovpn_action_dualhub_link_forwarding ;;
             7) ovpn_action_set_host_2 ;;
             0) return 0 ;;
