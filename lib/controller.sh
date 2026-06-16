@@ -27,6 +27,17 @@ _ovpn_ensure_remote_host() {
     ovpn_config_set OVPN_REMOTE_HOST "${host}"
 }
 
+# Carrega o 2º hub salvo (dual-hub) para o ambiente, sem perguntar. Assim, os
+# perfis de cliente listam os dois hubs (failover) logo após defini-lo, mesmo
+# sem reiniciar o instalador.
+_ovpn_load_remote_host_2() {
+    if [[ -n "${OVPN_REMOTE_HOST_2:-}" ]]; then return 0; fi
+    local saved
+    saved="$(ovpn_config_get OVPN_REMOTE_HOST_2)"
+    if [[ -n "${saved}" ]]; then export OVPN_REMOTE_HOST_2="${saved}"; fi
+    return 0
+}
+
 # Pergunta o modo de roteamento do cliente; ecoa "modo<TAB>rotas_csv".
 _ovpn_choose_routing() {
     local choice routes
@@ -52,6 +63,7 @@ _ovpn_choose_routing() {
 _ovpn_create_client_interactive() {
     local name="$1"
     _ovpn_ensure_remote_host || return 1
+    _ovpn_load_remote_host_2
     local sel mode routes
     sel="$(_ovpn_choose_routing)"
     mode="${sel%%$'\t'*}"
@@ -112,6 +124,21 @@ ovpn_action_set_host() {
     export OVPN_REMOTE_HOST="${host}"
     ovpn_config_set OVPN_REMOTE_HOST "${host}"
     ovpn_log_ok "Host do hub salvo: ${host}"
+}
+
+# Define e salva o IP/domínio do SEGUNDO hub (dual-hub ativo-ativo). Os perfis
+# de cliente passam a listar os dois hubs, com failover (remote-random). Valor
+# vazio remove o 2º hub (os perfis voltam a um hub só).
+ovpn_action_set_host_2() {
+    local host
+    read -r -p "IP/domínio do 2º hub (vazio = remover): " host || return 1
+    export OVPN_REMOTE_HOST_2="${host}"
+    ovpn_config_set OVPN_REMOTE_HOST_2 "${host}"
+    if [[ -z "${host}" ]]; then
+        ovpn_log_ok "2º hub removido (perfis voltam a um hub só)."
+    else
+        ovpn_log_ok "2º hub salvo: ${host} (novos perfis listarão os dois hubs)."
+    fi
 }
 
 # Instala o comando 'openvpn-installer' no PATH.
