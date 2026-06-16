@@ -78,6 +78,33 @@ setup() {
     [ "$status" -ne 0 ]
 }
 
+@test "ovpn_dualhub_link_forwarding: persiste ip_forward e libera o forward bidirecional (UFW), sem NAT" {
+    _ovpn_firewall_backend() { printf 'ufw'; }
+    run ovpn_dualhub_link_forwarding tun1
+    [ "$status" -eq 0 ]
+    grep -q 'net.ipv4.ip_forward = 1' "${OVPN_SYSCTL_FILE}"
+    run stub_calls ufw
+    [[ "$output" == *"route allow in on tun0 out on tun1"* ]]
+    [[ "$output" == *"route allow in on tun1 out on tun0"* ]]
+    [[ "$output" == *"reload"* ]]
+    [[ "$output" != *"MASQUERADE"* ]]
+    [[ "$output" != *"masquerade"* ]]
+}
+
+@test "ovpn_dualhub_link_forwarding: em nft, só persiste ip_forward (sem NAT)" {
+    _ovpn_firewall_backend() { printf 'nft'; }
+    run ovpn_dualhub_link_forwarding tun1
+    [ "$status" -eq 0 ]
+    grep -q 'net.ipv4.ip_forward = 1' "${OVPN_SYSCTL_FILE}"
+    run stub_calls nft
+    [[ "$output" != *"masquerade"* ]]
+}
+
+@test "ovpn_dualhub_link_forwarding: sem interface do enlace, aborta" {
+    run ovpn_dualhub_link_forwarding ""
+    [ "$status" -ne 0 ]
+}
+
 @test "client_profile: com dois hubs, o .ovpn lista os dois remote" {
     export OVPN_REMOTE_HOST_2="hubB.exemplo.com"
     ovpn_client_create alice
