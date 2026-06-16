@@ -15,6 +15,11 @@
 
 : "${OVPN_SUBNET_V4:=10.8.0.0}"
 : "${OVPN_TUN_IFACE:=tun0}"
+: "${OVPN_SERVER_NAME:=server}"
+# Nome FIXO da interface do enlace no hub que conecta (hub B). Fixar o nome
+# (em vez de depender do tunN dinâmico do kernel) torna o passo de
+# encaminhamento determinístico e estável após reboot.
+: "${OVPN_LINK_IFACE:=ovpn-link}"
 
 # Verdadeiro (0) se as sub-redes /24 dos dois hubs NÃO se sobrepõem.
 ovpn_dualhub_validate_subnets() {
@@ -30,6 +35,25 @@ ovpn_dualhub_validate_subnets() {
 # Verdadeiro (0) se o server.conf já contém o trecho indicado.
 _ovpn_dualhub_conf_has() {
     awk -v p="$1" 'index($0, p) { found = 1 } END { exit !found }' "$2" 2>/dev/null
+}
+
+# Fixa o nome da interface (dev) num perfil .ovpn: troca 'dev tun' por
+# 'dev <iface>' + 'dev-type tun'. Idempotente; no-op se o arquivo não existir.
+_ovpn_dualhub_pin_dev() {
+    local prof="$1" iface="$2" tmp
+    [[ -f "${prof}" ]] || return 0
+    if grep -q "^dev ${iface}\$" "${prof}"; then return 0; fi
+    tmp="$(mktemp)"
+    awk -v iface="${iface}" '
+        $0 == "dev tun" { print "dev " iface; print "dev-type tun"; next }
+        { print }
+    ' "${prof}" > "${tmp}" && mv "${tmp}" "${prof}"
+}
+
+# Reinicia o servidor para aplicar mudanças de rota no server.conf — o OpenVPN
+# só lê route/push na inicialização. Seam para os testes.
+_ovpn_dualhub_reload_server() {
+    systemctl restart "openvpn-server@${OVPN_SERVER_NAME}" 2>/dev/null || true
 }
 
 # Configura este hub para alcançar a sub-rede do hub par: valida as sub-redes,
@@ -73,14 +97,22 @@ ovpn_dualhub_register_peer() {
     local name="$1" peer_subnet="$2" peer_netmask="${3:-255.255.255.0}"
     [[ -n "${name}" ]] || ovpn_die "Informe o nome do peer (ex.: hub-b)."
     ovpn_dualhub_validate_subnets "${OVPN_SUBNET_V4}" "${peer_subnet}"
+    # Sem o host do hub A definido, o perfil do enlace sairia com o placeholder
+    # e o hub B nunca conectaria (falha silenciosa). Exige defini-lo antes.
+    [[ -n "${OVPN_REMOTE_HOST:-}" && "${OVPN_REMOTE_HOST}" != "${OVPN_REMOTE_HOST_PLACEHOLDER:-}" ]] \
+        || ovpn_die "Defina o IP/domínio do hub A (opção 13) antes de registrar o enlace."
 
     # O enlace conecta especificamente ao hub A — sem 2º remote nem remote-random.
     ( unset OVPN_REMOTE_HOST_2; ovpn_client_create "${name}" >/dev/null )
 
+    # Fixa o nome da interface do enlace no perfil (determinístico no hub B).
+    _ovpn_dualhub_pin_dev "$(ovpn_client_profile_path "${name}")" "${OVPN_LINK_IFACE}"
+    _ovpn_dualhub_pin_dev "${OVPN_HOME_DIR:-}/${name}.ovpn" "${OVPN_LINK_IFACE}"
+
     ovpn_ccd_set_iroute "${name}" "${peer_subnet}" "${peer_netmask}"
     ovpn_dualhub_configure "${peer_subnet}" "${peer_netmask}"
 
-    ovpn_log_ok "Peer ${name} registrado (sub-rede ${peer_subnet} via iroute). Leve o perfil $(ovpn_client_profile_path "${name}") para o hub par."
+    ovpn_log_ok "Peer ${name} registrado (sub-rede ${peer_subnet} via iroute, enlace em ${OVPN_LINK_IFACE}). Leve o perfil $(ovpn_client_profile_path "${name}") para o hub par."
 }
 
 # Habilita o encaminhamento do tráfego inter-hub no hub que conecta como cliente
@@ -93,7 +125,7 @@ ovpn_dualhub_register_peer() {
 # enlace (ex.: tun1, a que o openvpn-client do enlace cria).
 ovpn_dualhub_link_forwarding() {
     local link="$1"
-    [[ -n "${link}" ]] || ovpn_die "Informe a interface do enlace (ex.: tun1)."
+    [[ -n "${link}" ]] || ovpn_die "Informe a interface do enlace (ex.: ${OVPN_LINK_IFACE})."
     ovpn_sysctl_set net.ipv4.ip_forward 1
 
     case "$(_ovpn_firewall_backend)" in
@@ -103,9 +135,13 @@ ovpn_dualhub_link_forwarding() {
             ufw reload
             ;;
         *)
-            # nft/iptables: a política de FORWARD costuma ser ACCEPT; o
-            # ip_forward persistido já basta. Nunca NATear o tráfego inter-hub.
-            ovpn_log_info "Encaminhamento inter-hub por ip_forward (sem regra extra de FORWARD; sem NAT)."
+            # nft/iptables: a política de FORWARD pode ser DROP (ex.: host com
+            # Docker), e aí o ip_forward sozinho não basta — o tráfego inter-hub
+            # seria descartado em silêncio. Libera o forward BIDIRECIONAL no topo
+            # da chain FORWARD, sem NAT. (Runtime; em host sem UFW, reaplique após
+            # reboot — ou prefira UFW, que persiste.)
+            iptables -I FORWARD -i "${OVPN_TUN_IFACE}" -o "${link}" -j ACCEPT
+            iptables -I FORWARD -i "${link}" -o "${OVPN_TUN_IFACE}" -j ACCEPT
             ;;
     esac
     ovpn_log_ok "Encaminhamento inter-hub ativado entre ${OVPN_TUN_IFACE} e ${link} (sem NAT)."

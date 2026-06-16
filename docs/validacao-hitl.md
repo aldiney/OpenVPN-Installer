@@ -93,7 +93,9 @@ Tudo pelo menu (opção **15 — Dois hubs**). Guia completo em `docs/dual-hub.m
      levar o `hub-b.ovpn` gerado para o hub B.
   5. **Hub B**: subir o enlace
      (`sudo cp hub-b.ovpn /etc/openvpn/client/hub-b.conf && sudo systemctl enable --now openvpn-client@hub-b`);
-     descobrir a interface do enlace (ex.: `tun1`); menu **15 → 6** (encaminhamento, ex. `tun1`)
+     confirmar a conexão (`systemctl is-active openvpn-client@hub-b` e
+     `journalctl -u openvpn-client@hub-b | grep "Initialization Sequence Completed"`); a
+     interface do enlace é fixa **`ovpn-link`**; menu **15 → 6** (encaminhamento, `ovpn-link`)
      e **15 → 5** (anunciar a sub-rede do hub A, `10.8.0.0`).
   6. Em um hub: menu **15 → 7** define o 2º hub; opção **2** gera clientes com os dois `remote`.
   7. Conectar um cliente em cada hub; pingar de `10.8.0.x` para `10.8.1.x`.

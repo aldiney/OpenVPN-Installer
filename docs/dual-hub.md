@@ -56,9 +56,10 @@ No **hub A**, menu **15 → 4 (Registrar hub par)**:
 - Nome do peer: ex. `hub-b`.
 - Sub-rede do hub par: a do hub B (ex.: `10.8.1.0`), máscara `255.255.255.0`.
 
-Isso emite o **perfil de conexão do enlace** (`hub-b.ovpn`, com um único `remote` = hub A),
-marca a sub-rede do hub B com `iroute` e instala/anuncia a rota dessa sub-rede no hub A.
-Transfira o `hub-b.ovpn` (mostrado no fim) para o hub B.
+Isso emite o **perfil de conexão do enlace** (`hub-b.ovpn`, com um único `remote` = hub A
+e a interface fixa `dev ovpn-link`), marca a sub-rede do hub B com `iroute`, instala/anuncia
+a rota dessa sub-rede no hub A e **reinicia o servidor do hub A** para aplicá-la (os clientes
+reconectam sozinhos). Transfira o `hub-b.ovpn` (mostrado no fim) para o hub B.
 
 ### 5. Suba o enlace no hub B
 
@@ -71,19 +72,23 @@ No **hub B**:
    sudo systemctl enable --now openvpn-client@hub-b
    ```
 
-2. Descubra a **interface do enlace** que subiu (além do `tun0` do servidor):
+2. **Confirme que o enlace conectou** antes de seguir:
 
    ```
-   ip -o link show | awk -F': ' '/tun/ {print $2}'
+   systemctl is-active openvpn-client@hub-b
+   sudo journalctl -u openvpn-client@hub-b | grep "Initialization Sequence Completed"
    ```
 
-   Normalmente é `tun1`. Use esse nome nos passos seguintes.
+   Deve mostrar `active` e a linha de inicialização concluída. A interface do enlace tem
+   nome fixo **`ovpn-link`** (confira com `ip -o link show ovpn-link`).
 
-3. Menu **15 → 6 (Ativar encaminhamento do enlace)** → informe a interface do enlace
-   (ex.: `tun1`). Habilita e persiste o `ip_forward` e libera o forward (sem NAT).
+3. Menu **15 → 6 (Ativar encaminhamento do enlace)** → aceite a interface padrão
+   **`ovpn-link`**. Habilita e persiste o `ip_forward` e libera o forward (sem NAT; em UFW,
+   nas duas direções).
 4. Menu **15 → 5 (Anunciar a sub-rede do hub par aos clientes)** → informe a sub-rede do
-   **hub A** (ex.: `10.8.0.0`). Assim, os clientes do hub B aprendem a alcançar o hub A.
-   (A rota de kernel para o hub A já chega automaticamente pelo enlace.)
+   **hub A** (ex.: `10.8.0.0`). Os clientes do hub B aprendem a alcançar o hub A e o
+   servidor do hub B é reiniciado para aplicar. (A rota de kernel para o hub A já chega
+   automaticamente pelo enlace.)
 
 ### 6. Gere os perfis de cliente com os dois hubs
 

@@ -75,6 +75,26 @@ setup() {
     grep -q 'push "route 10.8.1.0 255.255.255.0"' "$(ovpn_server_conf_path)"
 }
 
+@test "ovpn_dualhub_register_peer: fixa o dev do enlace (ovpn-link) no perfil" {
+    mkdir -p "${OVPN_SERVER_DIR}"
+    printf 'dev tun\n' > "$(ovpn_server_conf_path)"
+    export OVPN_SUBNET_V4=10.8.0.0
+    ovpn_dualhub_register_peer hub-b 10.8.1.0 255.255.255.0
+    local prof="${OVPN_CLIENTS_DIR}/hub-b.ovpn"
+    grep -q '^dev ovpn-link' "${prof}"
+    grep -q '^dev-type tun' "${prof}"
+    ! grep -q '^dev tun$' "${prof}"
+}
+
+@test "ovpn_dualhub_register_peer: aborta se o host do hub A ainda é o placeholder" {
+    mkdir -p "${OVPN_SERVER_DIR}"
+    printf 'dev tun\n' > "$(ovpn_server_conf_path)"
+    export OVPN_SUBNET_V4=10.8.0.0
+    export OVPN_REMOTE_HOST="${OVPN_REMOTE_HOST_PLACEHOLDER}"
+    run ovpn_dualhub_register_peer hub-b 10.8.1.0
+    [ "$status" -ne 0 ]
+}
+
 @test "ovpn_dualhub_register_peer: o perfil do peer aponta só para o hub A (sem 2º remote)" {
     mkdir -p "${OVPN_SERVER_DIR}"
     printf 'dev tun\n' > "$(ovpn_server_conf_path)"
@@ -108,13 +128,16 @@ setup() {
     [[ "$output" != *"masquerade"* ]]
 }
 
-@test "ovpn_dualhub_link_forwarding: em nft, só persiste ip_forward (sem NAT)" {
+@test "ovpn_dualhub_link_forwarding: em nft/iptables, libera o FORWARD inter-hub sem NAT" {
     _ovpn_firewall_backend() { printf 'nft'; }
-    run ovpn_dualhub_link_forwarding tun1
+    run ovpn_dualhub_link_forwarding ovpn-link
     [ "$status" -eq 0 ]
     grep -q 'net.ipv4.ip_forward = 1' "${OVPN_SYSCTL_FILE}"
-    run stub_calls nft
-    [[ "$output" != *"masquerade"* ]]
+    run stub_calls iptables
+    [[ "$output" == *"FORWARD"* ]]
+    [[ "$output" == *"tun0"* ]]
+    [[ "$output" == *"ovpn-link"* ]]
+    [[ "$output" != *"MASQUERADE"* ]]
 }
 
 @test "ovpn_dualhub_link_forwarding: sem interface do enlace, aborta" {
