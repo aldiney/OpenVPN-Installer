@@ -7,6 +7,7 @@
 # Depende dos módulos core, log e pki.
 
 : "${OVPN_HUB_BUNDLE_VERSION:=openvpn-installer hub bundle v1}"
+: "${OVPN_SERVER_NAME:=server}"
 
 # Monta o bundle. mode=public (só identidade pública) ou master (inclui ca.key).
 _ovpn_hub_export() {
@@ -71,10 +72,15 @@ ovpn_hub_import() {
         cp "${work}/ca.key" "$(ovpn_pki_ca_key)"
         chmod 600 "$(ovpn_pki_ca_key)" 2>/dev/null || true
         rm -rf "${work}"
-        ovpn_log_ok "Bundle de CA MESTRA importado (este hub pode emitir certificados): ${bundle}"
+        # A CA foi trocada: o certificado de servidor antigo (assinado pela CA
+        # anterior) deixaria os clientes da CA compartilhada com VERIFY ERROR.
+        # Invalida-o para forçar a reemissão sob a CA compartilhada ao instalar.
+        rm -f "${OVPN_PKI_DIR}/issued/${OVPN_SERVER_NAME}.crt" \
+              "${OVPN_PKI_DIR}/private/${OVPN_SERVER_NAME}.key"
+        ovpn_log_ok "Bundle de CA MESTRA importado: ${bundle}. Rode 'Instalar hub' para (re)emitir o certificado do servidor sob a CA compartilhada."
         return 0
     fi
 
     rm -rf "${work}"
-    ovpn_log_ok "Bundle importado de ${bundle}."
+    ovpn_log_warn "Bundle PÚBLICO importado (sem a chave da CA): este hub NÃO pode emitir certificados de servidor. Para um 2º hub, use o bundle de CA MESTRA."
 }

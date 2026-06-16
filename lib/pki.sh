@@ -105,10 +105,17 @@ _ovpn_pki_issue() {
     ovpn_pki_init
     local key="${OVPN_PKI_DIR}/private/${name}.key"
     local cert="${OVPN_PKI_DIR}/issued/${name}.crt"
-    if [[ -f "${cert}" ]]; then
+    # Usa -s (não-vazio): um cert de 0 byte é resquício de uma emissão que
+    # falhou (ex.: CA sem chave) e deve ser reemitido, não tratado como pronto.
+    if [[ -s "${cert}" ]]; then
         ovpn_log_ok "Certificado de ${name} já existe — mantido."
         return 0
     fi
+    # Sem a chave privada da CA não dá para assinar. Acontece quando se importa
+    # o bundle PÚBLICO (sem ca.key) em vez do bundle de CA MESTRA — avisa claro
+    # em vez de gerar um certificado inválido/vazio.
+    [[ -f "$(ovpn_pki_ca_key)" ]] \
+        || ovpn_die "CA sem chave privada — importe a CA MESTRA (não a pública) antes de emitir certificados."
     _ovpn_pki_gen_entity_key "${key}"
     _ovpn_pki_sign_entity "${key}" "${cert}" "${name}" "${kind}"
     chmod 600 "${key}" 2>/dev/null || true
