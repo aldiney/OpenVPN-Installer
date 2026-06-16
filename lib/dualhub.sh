@@ -47,6 +47,23 @@ ovpn_dualhub_configure() {
     ovpn_log_ok "Hub configurado para alcançar a sub-rede ${peer_subnet} do hub par."
 }
 
+# Anuncia aos CLIENTES deste hub a rota para a sub-rede do hub par, SEM criar
+# rota de kernel local. Usada no hub que CONECTA (hub B): a rota de kernel para
+# a sub-rede do par já chega automaticamente pelo enlace (o hub A a empurra ao
+# cliente do enlace). Criar a rota de kernel aqui apontaria para o tun do
+# servidor local e conflitaria com a do enlace. Idempotente.
+ovpn_dualhub_announce() {
+    local peer_subnet="$1" peer_netmask="${2:-255.255.255.0}"
+    [[ -n "${peer_subnet}" ]] || ovpn_die "Informe a sub-rede do hub par."
+
+    local conf
+    conf="$(ovpn_server_conf_path)"
+    if ! _ovpn_dualhub_conf_has "push \"route ${peer_subnet} ${peer_netmask}\"" "${conf}"; then
+        printf 'push "route %s %s"\n' "${peer_subnet}" "${peer_netmask}" >> "${conf}"
+    fi
+    ovpn_log_ok "Sub-rede ${peer_subnet} do hub par anunciada aos clientes deste hub."
+}
+
 # Registra o hub par como peer DESTE hub (que age como ponto de encontro do
 # enlace). Roda no hub A: emite o perfil de conexão do peer (.ovpn que o hub B
 # usará para conectar aqui), fixa o IP, marca a sub-rede do peer com iroute

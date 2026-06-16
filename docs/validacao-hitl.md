@@ -81,16 +81,24 @@ esperado** e **critério de aprovação**. Marque `[x]` ao passar.
 
 ## T6 — Dois hubs ativo-ativo + failover (issue #10)
 
+Tudo pelo menu (opção **15 — Dois hubs**). Guia completo em `docs/dual-hub.md`.
+
 - [ ] Passos:
-  1. Hub A instalado (`10.8.0.0/24`). Exportar a CA: `ovpn_hub_export /tmp/ca.tar.gz`.
-  2. Hub B (outra máquina) com `OVPN_SUBNET_V4=10.8.1.0`; importar a CA antes de gerar o
-     servidor: `ovpn_hub_import /tmp/ca.tar.gz`.
-  3. Configurar rotas: no A `ovpn_dualhub_configure 10.8.1.0 255.255.255.0`; no B
-     `OVPN_SUBNET_V4=10.8.1.0 ovpn_dualhub_configure 10.8.0.0 255.255.255.0`.
-  4. Gerar perfis com `OVPN_REMOTE_HOST` e `OVPN_REMOTE_HOST_2` (os dois hubs).
-  5. Conectar um cliente em cada hub; pingar de A para B.
-  6. Derrubar o hub A (`systemctl stop openvpn-server@server`) e observar o cliente migrar.
-- [ ] Esperado: cliente do hub A alcança cliente do hub B; ao cair o A, o cliente reconecta no B.
+  1. **Hub A**: opção **1** com a rede `10.8.0.0`; opção **13** define o host público.
+  2. **Hub A**: menu **15 → 1** exporta a **CA mestra** (`/root/ca-mestra.tar.gz`);
+     transferir o bundle para o hub B (canal seguro).
+  3. **Hub B** (outra máquina): menu **15 → 3** importa a CA mestra; depois opção **1**
+     com a rede **`10.8.1.0`** (distinta); opção **13** define o host público.
+  4. **Hub A**: menu **15 → 4 (Registrar hub par)** — nome `hub-b`, sub-rede `10.8.1.0`;
+     levar o `hub-b.ovpn` gerado para o hub B.
+  5. **Hub B**: subir o enlace
+     (`sudo cp hub-b.ovpn /etc/openvpn/client/hub-b.conf && sudo systemctl enable --now openvpn-client@hub-b`);
+     descobrir a interface do enlace (ex.: `tun1`); menu **15 → 6** (encaminhamento, ex. `tun1`)
+     e **15 → 5** (anunciar a sub-rede do hub A, `10.8.0.0`).
+  6. Em um hub: menu **15 → 7** define o 2º hub; opção **2** gera clientes com os dois `remote`.
+  7. Conectar um cliente em cada hub; pingar de `10.8.0.x` para `10.8.1.x`.
+  8. Derrubar um hub (`sudo systemctl stop openvpn-server@server`) e observar o cliente migrar.
+- [ ] Esperado: cliente do hub A alcança cliente do hub B; ao cair um hub, o cliente reconecta no outro.
 - [ ] Aprovação: comunicação cruzada funciona e o cliente sobrevive à queda de um hub.
 
 ---
