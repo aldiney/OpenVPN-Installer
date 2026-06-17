@@ -15,6 +15,7 @@ common_setup() {
 
     # Sandbox de caminhos — sobrepõe os padrões dos módulos.
     export OVPN_ETC="${BATS_TEST_TMPDIR}/etc/openvpn"
+    export OVPN_CONFIG_DIR="${BATS_TEST_TMPDIR}/etc/openvpn-installer"
     export OVPN_SERVER_DIR="${OVPN_ETC}/server"
     export OVPN_PKI_DIR="${OVPN_ETC}/pki"
     export OVPN_CLIENTS_DIR="${OVPN_ETC}/clients"
