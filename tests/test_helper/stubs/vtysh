@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# Stub do `vtysh` (CLI do FRR): registra os argumentos e devolve
+# STUB_VTYSH_OUTPUT (para os testes simularem a saída de show commands).
+printf '%s\n' "$*" >> "${STUB_CALLS_DIR:?STUB_CALLS_DIR não definido}/vtysh"
+printf '%s\n' "${STUB_VTYSH_OUTPUT:-}"
+exit "${STUB_VTYSH_EXIT:-0}"
