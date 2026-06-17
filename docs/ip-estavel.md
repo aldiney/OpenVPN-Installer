@@ -18,44 +18,53 @@ IP em qualquer hub** — usando roteamento dinâmico (OSPF via FRR). Ver **ADR 0
 
 ## Papéis e parâmetros (por hub)
 
-Defina antes de ativar (persistidos em `installer.conf`):
+Defina-os pela **opção 10** do submenu (não edite o arquivo na mão):
 
-- `OVPN_DOMAIN_ID` — rótulo do domínio (separa implantações isoladas; o sync recusa outro domínio).
-- `OVPN_HUB_ID` — número do hub (vira o `router-id` OSPF; `1` é o primário/alocador).
-- `OVPN_HUB_ROLE` — `core` (ponto de encontro do enlace) ou `spoke` (conecta no core).
-- Espaço da VPN — o `/22` compartilhado (ex.: `OVPN_SUBNET_V4=10.80.0.0`, `OVPN_NETMASK_V4=255.255.252.0`).
+- `DOMAIN_ID` — rótulo do domínio (separa implantações isoladas; o sync recusa outro domínio).
+- `HUB_ID` — número do hub `1..254`, **único no domínio** (vira o `router-id` OSPF `0.0.0.<id>`;
+  dois hubs com o mesmo id quebram a adjacência).
+- `HUB_ROLE` — `core` (ponto de encontro do enlace) ou `spoke` (conecta no core).
+- Espaço da VPN — o `/22` compartilhado (ex.: `10.80.0.0` / `255.255.252.0`).
+- (Só no **spoke**) host do hub **core** — é o `remote` do enlace (separado do host dos clientes
+  da opção 13, que continua sendo o endereço deste hub para os seus próprios clientes).
 
 ## Passo a passo
 
-Tudo pelo submenu **15 — Dois hubs**.
+Tudo pelo submenu **15 — Dois hubs**. Faça em **cada hub**.
 
-### 1. (Migrando um hub `/24` existente) Re-endereçar para o `/22`
+### 1. Definir os parâmetros do domínio
 
-Submenu **15 → 9**: detecta a rede atual, re-endereça os clientes **preservando o último octeto**
-(`10.8.0.5` → `10.80.0.5`), com **backup** do `ccd` em `…/ccd.pre-readdress`. É **server-side**:
-o IP não está no `.ovpn`, então os clientes **reconectam e pegam o IP novo** sem re-emitir nada.
+Submenu **15 → 10**: informe domínio, **HUB_ID único**, papel (core/spoke), o espaço `/22` e —
+no spoke — o host do core. Persistido e validado (o id fora de `1..254` é recusado).
 
-### 2. Ativar o IP estável global (em cada hub)
+### 2. (Migrando um hub `/24` existente) Re-endereçar para o `/22`
 
-Submenu **15 → 8 (Rede única — IP estável global)**. Sob confirmação, o instalador:
-- instala o **FRR** (gate de dependências, regra dos 7 dias);
-- re-renderiza o `server.conf` no modo dinâmico (status + hooks);
-- gera o **FRR/OSPF** (redistribui só os `/32`) e instala o **reconciliador** (units systemd);
-- sobe o **enlace dedicado** (`openvpn-server@link` no core; `openvpn-client@link` no spoke);
-- habilita os serviços e reinicia o servidor.
+Submenu **15 → 9**: detecta a rede atual e re-endereça os clientes **preservando o último octeto**
+(`10.8.0.5` → `10.80.0.5`), com **backup** do `ccd` em `…/ccd.pre-readdress`. Como o `/22` já foi
+definido no passo 1, aceite o padrão oferecido. É **server-side**: o IP não está no `.ovpn`, então
+os clientes **reconectam e pegam o IP novo** sem re-emitir nada.
 
-No **spoke**, defina antes o host do core (`OVPN_REMOTE_HOST`, opção 13) — é o `remote` do enlace.
+### 3. Ativar o IP estável global
 
-### 3. Sincronizar o mapa de clientes
+Submenu **15 → 8 (Rede única — IP estável global)**. Sob confirmação, o instalador: instala o
+**FRR**; re-renderiza o `server.conf` no modo dinâmico (status + hooks); gera o **FRR/OSPF**
+(redistribui só os `/32`) e o **reconciliador** (units systemd); sobe o **enlace dedicado**
+(`openvpn-server@link` no core; `openvpn-client@link` no spoke); **habilita o encaminhamento**
+inter-hub (ip_forward + FORWARD); habilita os serviços e reinicia o servidor.
 
-O hub **primário** aloca os IPs; leve o mapa aos demais (bundle verificável, como a CA), para
-todos atribuírem o mesmo IP ao mesmo cliente.
+### 4. Sincronizar o mapa de clientes (ANTES de conectar clientes no 2º hub)
+
+No hub **primário** (que aloca os IPs): **15 → 11** exporta o mapa (bundle verificável). Leve ao
+outro hub e **15 → 12** importa. Só assim cada hub atribui o **mesmo IP** ao mesmo cliente — faça
+isto **antes** de o cliente conectar no 2º hub, senão ele pega um IP dinâmico lá.
 
 ## Verificação
 
 ```
-sudo systemctl status frr openvpn-server@link
-sudo vtysh -c "show ip route ospf"        # deve mostrar SÓ os /32 dos clientes
+sudo systemctl status frr                  # ativo nos dois hubs
+sudo systemctl status openvpn-server@link  # no CORE
+sudo systemctl status openvpn-client@link  # no SPOKE
+sudo vtysh -c "show ip route ospf"         # deve mostrar SÓ os /32 dos clientes
 ip route show proto static                 # os /32 mantidos pelo reconciliador
 ```
 
