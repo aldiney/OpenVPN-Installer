@@ -43,6 +43,24 @@ setup() {
     [ "$status" -ne 0 ]
 }
 
+@test "ovpn_ccd_readdress: re-endereça preservando o último octeto (/24 -> /22)" {
+    mkdir -p "$(ovpn_ccd_dir)"
+    printf 'ifconfig-push 10.8.0.5 255.255.255.0\n' > "$(ovpn_ccd_dir)/alice"
+    printf 'ifconfig-push 10.8.0.200 255.255.255.0\niroute 10.9.0.0 255.255.255.0\n' > "$(ovpn_ccd_dir)/hub-b"
+    ovpn_ccd_readdress 10.8.0.0 255.255.255.0 10.80.0.0 255.255.252.0
+    grep -q '^ifconfig-push 10.80.0.5 255.255.252.0$' "$(ovpn_ccd_dir)/alice"
+    grep -q '^ifconfig-push 10.80.0.200 255.255.252.0$' "$(ovpn_ccd_dir)/hub-b"
+    grep -q '^iroute 10.9.0.0' "$(ovpn_ccd_dir)/hub-b"
+    [ -d "$(ovpn_ccd_dir).pre-readdress" ]
+}
+
+@test "ovpn_ccd_readdress: idempotente (não re-desloca se já no novo espaço)" {
+    mkdir -p "$(ovpn_ccd_dir)"
+    printf 'ifconfig-push 10.80.0.5 255.255.252.0\n' > "$(ovpn_ccd_dir)/alice"
+    ovpn_ccd_readdress 10.8.0.0 255.255.255.0 10.80.0.0 255.255.252.0
+    grep -q '^ifconfig-push 10.80.0.5 255.255.252.0$' "$(ovpn_ccd_dir)/alice"
+}
+
 @test "ovpn_ccd_set_iroute: marca a sub-rede atrás do peer (idempotente)" {
     ovpn_ccd_assign hub-b >/dev/null
     ovpn_ccd_set_iroute hub-b 10.8.1.0 255.255.255.0

@@ -288,6 +288,30 @@ _ovpn_detect_server_mode() {
     else printf 'ipv4'; fi
 }
 
+# Migra a rede para o espaço estável: detecta a rede atual no server.conf,
+# re-endereça os IPs fixos preservando o host (com backup) e persiste o novo
+# espaço. Passo a rodar ANTES de ativar o IP estável global, ao migrar um hub
+# existente (/24 -> /22). Server-side: os clientes reconectam e pegam o IP novo.
+ovpn_action_readdress_space() {
+    local old_space old_mask new_space new_mask conf
+    conf="$(ovpn_server_conf_path)"
+    old_space="$(awk '/^server /{print $2; exit}' "${conf}" 2>/dev/null)"
+    old_mask="$(awk '/^server /{print $3; exit}' "${conf}" 2>/dev/null)"
+    [[ -n "${old_space}" && -n "${old_mask}" ]] || { ovpn_log_warn "Não detectei a rede atual no server.conf."; return 1; }
+    read -r -p "Novo espaço (rede) [${OVPN_SUBNET_V4}]: " new_space || return 1
+    [[ -n "${new_space}" ]] || new_space="${OVPN_SUBNET_V4}"
+    read -r -p "Nova máscara [${OVPN_NETMASK_V4}]: " new_mask || return 1
+    [[ -n "${new_mask}" ]] || new_mask="${OVPN_NETMASK_V4}"
+    ovpn_log_warn "Re-endereça os clientes de ${old_space}/${old_mask} para ${new_space}/${new_mask} (preserva o host; backup do ccd)."
+    ovpn_ui_confirm "Re-endereçar agora?" || return 0
+    ovpn_ccd_readdress "${old_space}" "${old_mask}" "${new_space}" "${new_mask}"
+    ovpn_config_set OVPN_SUBNET_V4 "${new_space}"
+    ovpn_config_set OVPN_NETMASK_V4 "${new_mask}"
+    export OVPN_SUBNET_V4="${new_space}"
+    export OVPN_NETMASK_V4="${new_mask}"
+    ovpn_log_ok "Rede re-endereçada para ${new_space}/${new_mask}. Ative o IP estável global para aplicar no servidor."
+}
+
 # Ativa o IP estável global (roteamento dinâmico OSPF): instala o FRR, re-renderiza
 # o servidor no modo dinâmico (hooks + status), gera o FRR/OSPF e o reconciliador,
 # sobe o enlace dedicado (core ou spoke conforme OVPN_HUB_ROLE) e habilita tudo.
@@ -342,7 +366,8 @@ ovpn_menu_dualhub() {
             "Anunciar a sub-rede do hub par aos clientes — no hub B" \
             "Ativar encaminhamento do enlace (no hub que conecta)" \
             "Definir/alterar o 2º hub dos clientes (failover)" \
-            "Rede única — IP estável global (OSPF/FRR)"
+            "Rede única — IP estável global (OSPF/FRR)" \
+            "Migrar a rede para o espaço estável (re-endereçar /24->/22)"
         printf '0. Voltar\n'
         read -r -p "Escolha uma opção: " choice || return 0
         case "${choice}" in
@@ -354,6 +379,7 @@ ovpn_menu_dualhub() {
             6) ovpn_action_dualhub_link_forwarding ;;
             7) ovpn_action_set_host_2 ;;
             8) ovpn_action_enable_dynrouting ;;
+            9) ovpn_action_readdress_space ;;
             0) return 0 ;;
             *) ovpn_log_warn "Opção inválida." ;;
         esac
