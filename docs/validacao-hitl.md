@@ -150,17 +150,21 @@ Tudo pelo menu (opção **15 — Dois hubs**). Guia completo em `docs/dual-hub.m
 > só se validam em máquina real (mecânica `topology subnet`, redistribuição FRR, convergência).
 
 - [ ] Passos:
-  1. Hub core e hub spoke instalados; CA mestra compartilhada (T6). Definir as chaves do
-     domínio (`OVPN_DOMAIN_ID`, `OVPN_HUB_ID`, `OVPN_HUB_ROLE`, espaço `/22`).
-  2. (Hub existente) Submenu **15 → 9** re-endereça `/24 → /22` (preserva o octeto; backup do ccd).
-  3. Em cada hub: submenu **15 → 8** (Ativar IP estável global) — instala FRR, re-renderiza,
-     sobe o enlace dedicado e o reconciliador.
-  4. `sudo vtysh -c "show ip route ospf"` nos dois hubs: confirmar que aparecem **só os `/32`
-     dos clientes** (o `/22` conectado **não** vaza).
-  5. Conectar um cliente no core (recebe ex.: `10.80.0.5`); conferir que outro cliente o alcança
+  1. Hub core e hub spoke instalados; CA mestra compartilhada (T6). Em **cada hub**, submenu
+     **15 → 10** define os parâmetros: domínio, **HUB_ID único** (`1..254`), papel (core/spoke),
+     espaço `/22` e — no spoke — o host do core.
+  2. (Hub existente) Submenu **15 → 9** re-endereça `/24 → /22` (preserva o octeto; backup do ccd;
+     aceitar o `/22` já definido no passo 1).
+  3. Em cada hub: submenu **15 → 8** (Ativar IP estável global) — instala FRR, re-renderiza, sobe
+     o enlace dedicado, o reconciliador **e habilita o encaminhamento inter-hub**.
+  4. **Sincronizar o mapa ANTES de conectar clientes no 2º hub**: no primário **15 → 11** (exportar);
+     levar o bundle ao outro hub e **15 → 12** (importar).
+  5. `sudo vtysh -c "show ip route ospf"` nos dois hubs: confirmar **só os `/32`** dos clientes
+     (o `/22` conectado **não** vaza). No spoke, conferir `openvpn-client@link` ativo.
+  6. Conectar um cliente no core (recebe ex.: `10.80.0.5`); conferir que outro cliente o alcança
      por esse IP. Migrar o cliente para o spoke (failover) e confirmar que **mantém `10.80.0.5`**.
-  6. Medir a **convergência** do roam (alvo a definir, ex.: < 30 s) e ajustar timers/metric.
-  7. Repetir com **celular** e **MikroTik** — devem receber o IP estável sem up-script, em ambos.
+  7. Medir a **convergência** do roam (alvo a definir, ex.: < 30 s) e ajustar timers/metric.
+  8. Repetir com **celular** e **MikroTik** — devem receber o IP estável sem up-script, em ambos.
 - [ ] Esperado: o cliente tem o **mesmo IP em qualquer hub**; só os `/32` entram no OSPF;
       celular/MikroTik funcionam sem ajuste no cliente.
 - [ ] Aprovação: IP idêntico antes e depois do roam; LSDB sem o `/22`; convergência aceitável.
