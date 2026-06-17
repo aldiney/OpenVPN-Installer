@@ -32,6 +32,7 @@ setup() {
     grep -q 'route-map ONLY-CLIENT-32 permit 10' "${c}"
     grep -q 'network 10.255.0.0/30 area 0.0.0.0' "${c}"
     grep -q 'no passive-interface ovpn-link' "${c}"
+    grep -q 'ip ospf network point-to-multipoint' "${c}"
     ! grep -q 'redistribute connected' "${c}"
 }
 
