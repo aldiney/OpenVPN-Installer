@@ -26,6 +26,28 @@ setup() {
     [ -z "$(ovpn_config_get NAO_EXISTE)" ]
 }
 
+@test "ovpn_config_path: fica FORA de /etc/openvpn (evita openvpn@installer em loop)" {
+    [[ "$(ovpn_config_path)" != "${OVPN_ETC}/installer.conf" ]]
+    [[ "$(ovpn_config_path)" == *"openvpn-installer/installer.conf" ]]
+}
+
+@test "ovpn_config_relocate_legacy: move o installer.conf legado para fora de /etc/openvpn" {
+    mkdir -p "${OVPN_ETC}"
+    printf 'OVPN_SUBNET_V4=10.8.0.0\n' > "${OVPN_ETC}/installer.conf"
+    ovpn_config_relocate_legacy
+    [ ! -f "${OVPN_ETC}/installer.conf" ]
+    [ "$(ovpn_config_get OVPN_SUBNET_V4)" = "10.8.0.0" ]
+}
+
+@test "ovpn_config_relocate_legacy: com o novo já existente, só remove o legado" {
+    mkdir -p "${OVPN_ETC}"
+    printf 'OVPN_SUBNET_V4=10.8.0.0\n' > "${OVPN_ETC}/installer.conf"
+    ovpn_config_set OVPN_SUBNET_V4 10.80.0.0
+    ovpn_config_relocate_legacy
+    [ ! -f "${OVPN_ETC}/installer.conf" ]
+    [ "$(ovpn_config_get OVPN_SUBNET_V4)" = "10.80.0.0" ]
+}
+
 @test "ovpn_config_apply: carrega a sub-rede persistida e deriva o prefixo" {
     ovpn_config_set OVPN_SUBNET_V4 10.8.7.0
     ovpn_config_apply

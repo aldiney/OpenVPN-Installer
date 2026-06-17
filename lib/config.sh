@@ -1,9 +1,30 @@
 #!/usr/bin/env bash
 # Módulo config — persistência simples de preferências do instalador.
-# Guarda pares CHAVE=valor em ${OVPN_ETC}/installer.conf (parse seguro, sem
-# `source`). Usado, por exemplo, para lembrar o host/IP do hub. Depende do core.
+# Guarda pares CHAVE=valor em ${OVPN_CONFIG_DIR}/installer.conf (parse seguro,
+# sem `source`). FICA FORA de /etc/openvpn de propósito: o pacote openvpn tem o
+# template openvpn@.service que tenta subir um túnel para cada /etc/openvpn/*.conf
+# — um installer.conf ali viraria um openvpn@installer falhando em loop.
+# Usado, por exemplo, para lembrar o host/IP do hub. Depende do core.
 
-ovpn_config_path() { printf '%s' "${OVPN_ETC}/installer.conf"; }
+: "${OVPN_CONFIG_DIR:=/etc/openvpn-installer}"
+
+ovpn_config_path() { printf '%s' "${OVPN_CONFIG_DIR}/installer.conf"; }
+
+# Migra o installer.conf legado (em /etc/openvpn) para fora, removendo o arquivo
+# que disparava o openvpn@installer. Idempotente; chamado no startup.
+ovpn_config_relocate_legacy() {
+    local old="${OVPN_ETC}/installer.conf" new
+    new="$(ovpn_config_path)"
+    if [[ "${old}" == "${new}" ]]; then return 0; fi
+    if [[ ! -f "${old}" ]]; then return 0; fi
+    mkdir -p "${OVPN_CONFIG_DIR}"
+    if [[ -f "${new}" ]]; then
+        rm -f "${old}"          # o novo já existe: só remove o legado (some o gatilho)
+    else
+        mv "${old}" "${new}"    # preserva as preferências no novo local
+    fi
+    return 0
+}
 
 # Lê o valor de uma chave (stdout vazio se não existir).
 ovpn_config_get() {
@@ -44,7 +65,7 @@ ovpn_config_apply() {
 ovpn_config_set() {
     local key="$1" value="$2" file tmp
     file="$(ovpn_config_path)"
-    mkdir -p "${OVPN_ETC}"
+    mkdir -p "${OVPN_CONFIG_DIR}"
     touch "${file}"
     tmp="$(mktemp)"
     awk -F= -v k="${key}" '$1 != k' "${file}" > "${tmp}"

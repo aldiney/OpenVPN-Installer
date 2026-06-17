@@ -21,7 +21,9 @@ done
 ovpn_require_root
 ovpn_os_assert_supported
 
-# Carrega as preferências persistidas (sub-rede da VPN, hosts do hub) no ambiente.
+# Move um installer.conf legado para fora de /etc/openvpn (evita o openvpn@installer
+# em loop) e carrega as preferências persistidas no ambiente.
+ovpn_config_relocate_legacy
 ovpn_config_apply
 
 # Se a instalação é de uma versão anterior, oferece aplicar as correções.
