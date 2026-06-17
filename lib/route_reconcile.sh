@@ -14,6 +14,7 @@
 : "${OVPN_RECONCILE_SPOOL:=/run/openvpn-installer/reconcile.trigger}"
 : "${OVPN_STATUS_FILE:=/run/openvpn-server/status-server.log}"
 : "${OVPN_LIB_DIR:=/root/OpenVPN-Installer/lib}"
+: "${OVPN_TMPFILES_CONF:=/usr/lib/tmpfiles.d/openvpn-installer.conf}"
 
 # Extrai os IPs virtuais IPv4 dos clientes conectados. No status-version 2 as
 # linhas CLIENT_LIST têm o IP virtual no 4º campo (CSV).
@@ -21,6 +22,14 @@ ovpn_reconcile_parse_status() {
     local f="$1"
     [[ -f "${f}" ]] || return 0
     awk -F',' '$1 == "CLIENT_LIST" && $4 ~ /^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$/ { print $4 }' "${f}"
+}
+
+# Verdadeiro (0) se o status existe e tem uma leitura confiável (cabeçalho do
+# OpenVPN). Evita podar tudo quando o status está ausente/truncado.
+_ovpn_reconcile_status_valid() {
+    local f="$1"
+    [[ -f "${f}" ]] || return 1
+    awk '/^TITLE|^TIME|^HEADER|^CLIENT_LIST|^GLOBAL_STATS/ { ok = 1 } END { exit !ok }' "${f}"
 }
 
 # Reconcilia as rotas /32: instala/atualiza as dos clientes conectados e remove
@@ -34,6 +43,10 @@ ovpn_reconcile_apply() {
     for c in ${connected}; do
         ip route replace "${c}/32" dev "${tun}" proto static metric 50 || true
     done
+
+    # Só PODA com leitura confiável do status: um status ausente/truncado deixaria
+    # `connected` vazio e apagaria TODAS as /32 num único tick (apagão silencioso).
+    _ovpn_reconcile_status_valid "${status}" || return 0
 
     existing="$(ip route show proto static dev "${tun}" 2>/dev/null | awk '{print $1}')"
     for e in ${existing}; do
@@ -50,8 +63,26 @@ ovpn_reconcile_apply() {
 # (chama o reconciliador), path (observa o spool dos hooks) e timer (rede de
 # segurança a cada 30s, caso o path perca um evento).
 ovpn_reconcile_install_units() {
-    mkdir -p "$(dirname "${OVPN_RECONCILE_BIN}")" "${OVPN_SYSTEMD_DIR}" \
-        "$(dirname "${OVPN_RECONCILE_SPOOL}")"
+    local spool_dir
+    spool_dir="$(dirname "${OVPN_RECONCILE_SPOOL}")"
+    mkdir -p "$(dirname "${OVPN_RECONCILE_BIN}")" "${OVPN_SYSTEMD_DIR}" "${spool_dir}"
+
+    # O spool precisa ser gravável pelo grupo nogroup: os hooks rodam como
+    # nobody:nogroup (priv-drop do OpenVPN) e só fazem append. Sem isso, o
+    # append falha (EACCES) e a sinalização por evento morre em silêncio.
+    chgrp nogroup "${spool_dir}" 2>/dev/null || true
+    chmod 0775 "${spool_dir}" 2>/dev/null || true
+    : > "${OVPN_RECONCILE_SPOOL}" 2>/dev/null || true
+    chgrp nogroup "${OVPN_RECONCILE_SPOOL}" 2>/dev/null || true
+    chmod 0664 "${OVPN_RECONCILE_SPOOL}" 2>/dev/null || true
+
+    # /run é tmpfs (some no reboot): recria o dir/arquivo com a permissão certa
+    # a cada boot, antes do OpenVPN subir.
+    mkdir -p "$(dirname "${OVPN_TMPFILES_CONF}")"
+    {
+        printf 'd %s 0775 root nogroup -\n' "${spool_dir}"
+        printf 'f %s 0664 root nogroup -\n' "${OVPN_RECONCILE_SPOOL}"
+    } > "${OVPN_TMPFILES_CONF}"
 
     cat > "${OVPN_RECONCILE_BIN}" <<BIN
 #!/usr/bin/env bash

@@ -60,7 +60,7 @@ ovpn_frr_render_ospf() {
 ! Gerado pelo OpenVPN-Installer — IP estável global (ADR 0005).
 router ospf
  ospf router-id ${router_id}
- redistribute kernel route-map ONLY-CLIENT-32
+ redistribute static route-map ONLY-CLIENT-32
  network ${transport} area ${area}
  passive-interface default
  no passive-interface ${link}
