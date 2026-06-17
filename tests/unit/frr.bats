@@ -44,11 +44,12 @@ setup() {
     [ "${got}" = "frr" ]
 }
 
-@test "ovpn_frr_enable: habilita e inicia o frr" {
+@test "ovpn_frr_enable: habilita e REINICIA o frr (aplica o daemons/ospfd)" {
     run ovpn_frr_enable
     [ "$status" -eq 0 ]
     run stub_calls systemctl
-    [[ "$output" == *"enable --now frr"* ]]
+    [[ "$output" == *"enable frr"* ]]
+    [[ "$output" == *"restart frr"* ]]
 }
 
 @test "ovpn_frr_show_routes: consulta as rotas OSPF via vtysh" {
