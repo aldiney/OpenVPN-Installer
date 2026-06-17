@@ -62,3 +62,32 @@ setup() {
     ovpn_server_render ipv4
     grep -q '^mssfix 1400$' "$(ovpn_server_conf_path)"
 }
+
+@test "ovpn_server_render: modo estático (default) NÃO emite hooks/status/script-security" {
+    ovpn_server_render ipv4
+    local conf="$(ovpn_server_conf_path)"
+    ! grep -q '^script-security' "${conf}"
+    ! grep -q '^client-connect' "${conf}"
+    ! grep -q '^status' "${conf}"
+}
+
+@test "ovpn_server_render: com OVPN_DYNROUTING=on emite status-version 2, status, script-security e hooks" {
+    export OVPN_DYNROUTING=on
+    ovpn_server_render ipv4
+    local conf="$(ovpn_server_conf_path)"
+    grep -q '^status-version 2$' "${conf}"
+    grep -qE '^status .+ 5$' "${conf}"
+    grep -q '^script-security 2$' "${conf}"
+    grep -q '^client-connect .*/connect.sh$' "${conf}"
+    grep -q '^client-disconnect .*/disconnect.sh$' "${conf}"
+}
+
+@test "ovpn_server_render_hooks: gera hooks executáveis que só sinalizam o spool" {
+    export OVPN_HOOKS_DIR="${BATS_TEST_TMPDIR}/hooks"
+    export OVPN_RECONCILE_SPOOL="${BATS_TEST_TMPDIR}/reconcile.trigger"
+    ovpn_server_render_hooks
+    [ -x "${OVPN_HOOKS_DIR}/connect.sh" ]
+    [ -x "${OVPN_HOOKS_DIR}/disconnect.sh" ]
+    "${OVPN_HOOKS_DIR}/connect.sh"
+    grep -q 'connect' "${OVPN_RECONCILE_SPOOL}"
+}
