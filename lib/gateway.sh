@@ -12,8 +12,14 @@
 # nft (padrão) ou iptables, em runtime. Depende de core, log e firewall.
 
 : "${OVPN_SUBNET_V4:=10.8.0.0}"
+: "${OVPN_NETMASK_V4:=255.255.255.0}"
 : "${OVPN_TUN_IFACE:=tun0}"
 : "${OVPN_UFW_BEFORE_RULES:=/etc/ufw/before.rules}"
+
+# CIDR do espaço da VPN (espaço/prefixo), derivado da máscara configurada.
+_ovpn_gateway_cidr() {
+    printf '%s/%s' "${OVPN_SUBNET_V4}" "$(ovpn_netmask_to_plen "${OVPN_NETMASK_V4}")"
+}
 
 # Ativa a saída para a internet (NAT + encaminhamento) pela interface WAN.
 ovpn_gateway_enable() {
@@ -29,7 +35,7 @@ ovpn_gateway_enable() {
             _ovpn_gateway_nft_masquerade "${wan}"
             ;;
         *)
-            iptables -t nat -A POSTROUTING -s "${OVPN_SUBNET_V4}/24" -o "${wan}" -j MASQUERADE
+            iptables -t nat -A POSTROUTING -s "$(_ovpn_gateway_cidr)" -o "${wan}" -j MASQUERADE
             ;;
     esac
     ovpn_log_ok "Saída para a internet (NAT) ativada via ${wan}. Marque clientes como full-tunnel para usá-la."
@@ -50,7 +56,7 @@ ovpn_gateway_disable() {
         *)
             if [[ -n "${wan}" ]]; then
                 iptables -t nat -D POSTROUTING \
-                    -s "${OVPN_SUBNET_V4}/24" -o "${wan}" -j MASQUERADE 2>/dev/null || true
+                    -s "$(_ovpn_gateway_cidr)" -o "${wan}" -j MASQUERADE 2>/dev/null || true
             fi
             ;;
     esac
@@ -80,7 +86,7 @@ _ovpn_gateway_ufw_disable() {
 
 # Regra de masquerade que será persistida.
 _ovpn_gateway_nat_rule() {
-    printf -- '-A POSTROUTING -s %s/24 -o %s -j MASQUERADE' "${OVPN_SUBNET_V4}" "$1"
+    printf -- '-A POSTROUTING -s %s -o %s -j MASQUERADE' "$(_ovpn_gateway_cidr)" "$1"
 }
 
 # Grava o masquerade no before.rules do UFW (idempotente, persiste no reboot).
@@ -121,5 +127,5 @@ _ovpn_gateway_nft_masquerade() {
     local wan="$1"
     nft add table ip ovpn 2>/dev/null || true
     nft add chain ip ovpn postrouting '{ type nat hook postrouting priority 100 ; }' 2>/dev/null || true
-    nft add rule ip ovpn postrouting ip saddr "${OVPN_SUBNET_V4}/24" oifname "${wan}" masquerade
+    nft add rule ip ovpn postrouting ip saddr "$(_ovpn_gateway_cidr)" oifname "${wan}" masquerade
 }

@@ -15,11 +15,32 @@ setup() {
     [ "$(ovpn_vpn_prefix 192.168.50.0)" = "192.168.50" ]
 }
 
-@test "ovpn_ccd_assign: respeita o prefixo configurado (rede da VPN escolhida)" {
-    export OVPN_VPN_PREFIX_V4=10.8.9
+@test "ovpn_ccd_assign: respeita a rede configurada (rede da VPN escolhida)" {
+    export OVPN_SUBNET_V4=10.8.9.0
     run ovpn_ccd_assign alice
     [ "$status" -eq 0 ]
     grep -q "ifconfig-push 10.8.9.2 " "${OVPN_SERVER_DIR}/ccd/alice"
+}
+
+@test "ovpn_ccd_next_free_ip: aloca além de .254 num /22 (espaço amplo)" {
+    export OVPN_SUBNET_V4=10.80.0.0
+    export OVPN_NETMASK_V4=255.255.252.0
+    mkdir -p "$(ovpn_ccd_dir)"
+    local f="$(ovpn_ccd_dir)/seed" i
+    for i in $(seq 2 254); do printf 'ifconfig-push 10.80.0.%s 255.255.252.0\n' "$i" >> "$f"; done
+    run ovpn_ccd_next_free_ip
+    [ "$status" -eq 0 ]
+    [ "$output" = "10.80.0.255" ]
+}
+
+@test "ovpn_ccd_next_free_ip: respeita o limite da máscara (/29: só .2-.6)" {
+    export OVPN_SUBNET_V4=10.80.0.0
+    export OVPN_NETMASK_V4=255.255.255.248
+    mkdir -p "$(ovpn_ccd_dir)"
+    local f="$(ovpn_ccd_dir)/seed" i
+    for i in 2 3 4 5 6; do printf 'ifconfig-push 10.80.0.%s 255.255.255.248\n' "$i" >> "$f"; done
+    run ovpn_ccd_next_free_ip
+    [ "$status" -ne 0 ]
 }
 
 @test "ovpn_ccd_set_iroute: marca a sub-rede atrás do peer (idempotente)" {

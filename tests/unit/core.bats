@@ -64,3 +64,24 @@ setup() {
     ovpn_sysctl_set net.ipv4.ip_forward 1
     [ "$(grep -c 'ip_forward' "${OVPN_SYSCTL_FILE}")" -eq 1 ]
 }
+
+@test "ovpn_ip_to_int / ovpn_int_to_ip: round-trip" {
+    load_lib core
+    [ "$(ovpn_ip_to_int 10.8.0.0)" = "168296448" ]
+    [ "$(ovpn_int_to_ip 168296448)" = "10.8.0.0" ]
+    [ "$(ovpn_int_to_ip "$(ovpn_ip_to_int 10.80.3.255)")" = "10.80.3.255" ]
+}
+
+@test "ovpn_netmask_to_plen: conta os bits da máscara" {
+    load_lib core
+    [ "$(ovpn_netmask_to_plen 255.255.255.0)" = "24" ]
+    [ "$(ovpn_netmask_to_plen 255.255.252.0)" = "22" ]
+    [ "$(ovpn_netmask_to_plen 255.255.0.0)" = "16" ]
+}
+
+@test "ovpn_plen_to_netmask: gera a máscara dotted" {
+    load_lib core
+    [ "$(ovpn_plen_to_netmask 24)" = "255.255.255.0" ]
+    [ "$(ovpn_plen_to_netmask 22)" = "255.255.252.0" ]
+    [ "$(ovpn_plen_to_netmask 16)" = "255.255.0.0" ]
+}

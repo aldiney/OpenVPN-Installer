@@ -24,6 +24,8 @@ ovpn_config_apply() {
         export OVPN_SUBNET_V4="${v}"
         export OVPN_VPN_PREFIX_V4="${v%.*}"
     fi
+    v="$(ovpn_config_get OVPN_NETMASK_V4)"
+    if [[ -n "${v}" ]]; then export OVPN_NETMASK_V4="${v}"; fi
     v="$(ovpn_config_get OVPN_REMOTE_HOST)"
     if [[ -n "${v}" ]]; then export OVPN_REMOTE_HOST="${v}"; fi
     v="$(ovpn_config_get OVPN_REMOTE_HOST_2)"

@@ -33,6 +33,17 @@ setup() {
     [[ "$output" == *"delete table ip ovpn"* ]]
 }
 
+@test "ovpn_gateway_enable UFW: NAT usa o prefixo da máscara (/22 no espaço amplo)" {
+    _ovpn_firewall_backend() { printf 'ufw'; }
+    export OVPN_SUBNET_V4=10.80.0.0
+    export OVPN_NETMASK_V4=255.255.252.0
+    export OVPN_UFW_BEFORE_RULES="${BATS_TEST_TMPDIR}/before.rules"
+    printf '*filter\nCOMMIT\n' > "${OVPN_UFW_BEFORE_RULES}"
+    run ovpn_gateway_enable ens3
+    [ "$status" -eq 0 ]
+    grep -q -- '-A POSTROUTING -s 10.80.0.0/22 -o ens3 -j MASQUERADE' "${OVPN_UFW_BEFORE_RULES}"
+}
+
 @test "ovpn_gateway_enable UFW: idempotente (não duplica o NAT)" {
     _ovpn_firewall_backend() { printf 'ufw'; }
     export OVPN_UFW_BEFORE_RULES="${BATS_TEST_TMPDIR}/before.rules"
