@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# Stub do comando `ip`: registra os argumentos e, para `ip route show`, devolve
+# o conteúdo de STUB_IP_ROUTES (uma rota por linha) para os testes controlarem
+# o estado de rotas existentes.
+printf '%s\n' "$*" >> "${STUB_CALLS_DIR:?STUB_CALLS_DIR não definido}/ip"
+if [[ "$1 $2" == "route show" ]]; then
+    printf '%s\n' "${STUB_IP_ROUTES:-}"
+fi
+exit "${STUB_IP_EXIT:-0}"
