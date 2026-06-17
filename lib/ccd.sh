@@ -64,6 +64,37 @@ ovpn_ccd_assign() {
     printf '%s' "${ip}"
 }
 
+# Re-endereça os IPs fixos do ccd de um espaço antigo para um novo, PRESERVANDO
+# o deslocamento do host (ex.: 10.8.0.5/24 -> 10.80.0.5/22). Faz backup do ccd
+# em <dir>.pre-readdress, preserva as demais linhas (iroute/push) e é idempotente
+# (pula quem já está no novo espaço). Usado ao migrar para o espaço estável /22.
+ovpn_ccd_readdress() {
+    local old_space="$1" old_mask="$2" new_space="$3" new_mask="$4"
+    local dir f ip ip_int old_net new_net new_mask_int off newip tmp
+    dir="$(ovpn_ccd_dir)"
+    [[ -d "${dir}" ]] || return 0
+    old_net=$(( $(ovpn_ip_to_int "${old_space}") & $(ovpn_ip_to_int "${old_mask}") ))
+    new_mask_int="$(ovpn_ip_to_int "${new_mask}")"
+    new_net=$(( $(ovpn_ip_to_int "${new_space}") & new_mask_int ))
+
+    rm -rf "${dir}.pre-readdress"
+    cp -a "${dir}" "${dir}.pre-readdress"
+
+    for f in "${dir}"/*; do
+        [[ -e "${f}" ]] || continue
+        ip="$(awk '/ifconfig-push/{print $2; exit}' "${f}")"
+        [[ -n "${ip}" ]] || continue
+        ip_int="$(ovpn_ip_to_int "${ip}")"
+        if (( (ip_int & new_mask_int) == new_net )); then continue; fi   # já no novo espaço
+        off=$(( ip_int - old_net ))
+        newip="$(ovpn_int_to_ip $(( new_net + off )))"
+        tmp="$(mktemp)"
+        awk -v nip="${newip}" -v nm="${new_mask}" \
+            '/ifconfig-push/ { print "ifconfig-push " nip " " nm; next } { print }' "${f}" > "${tmp}" \
+            && mv "${tmp}" "${f}"
+    done
+}
+
 # Marca a sub-rede que fica ATRÁS de um peer (um hub conectado como cliente),
 # via iroute no ccd — o OpenVPN passa a rotear essa sub-rede para a conexão dele
 # (base do enlace site-to-site por cliente+iroute). Idempotente.

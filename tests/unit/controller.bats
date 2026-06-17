@@ -83,6 +83,17 @@ setup() {
     [ -z "$(ovpn_config_get OVPN_DYNROUTING)" ]
 }
 
+@test "ovpn_action_readdress_space: detecta a rede atual, re-endereça e persiste" {
+    mkdir -p "${OVPN_SERVER_DIR}"
+    printf 'server 10.8.0.0 255.255.255.0\n' > "$(ovpn_server_conf_path)"
+    mkdir -p "$(ovpn_ccd_dir)"
+    printf 'ifconfig-push 10.8.0.5 255.255.255.0\n' > "$(ovpn_ccd_dir)/alice"
+    run ovpn_action_readdress_space <<< $'10.80.0.0\n255.255.252.0\ns'
+    [ "$status" -eq 0 ]
+    grep -q '^ifconfig-push 10.80.0.5 255.255.252.0$' "$(ovpn_ccd_dir)/alice"
+    [ "$(ovpn_config_get OVPN_SUBNET_V4)" = "10.80.0.0" ]
+}
+
 @test "ovpn_action_dualhub_announce: aplica a rota e reinicia o servidor" {
     mkdir -p "${OVPN_SERVER_DIR}"
     printf 'dev tun\n' > "$(ovpn_server_conf_path)"
