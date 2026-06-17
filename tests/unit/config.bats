@@ -33,6 +33,12 @@ setup() {
     [ "${OVPN_VPN_PREFIX_V4}" = "10.8.7" ]
 }
 
+@test "ovpn_config_apply: carrega a máscara persistida (espaço amplo)" {
+    ovpn_config_set OVPN_NETMASK_V4 255.255.252.0
+    ovpn_config_apply
+    [ "${OVPN_NETMASK_V4}" = "255.255.252.0" ]
+}
+
 @test "ovpn_config_apply: carrega os hosts do hub persistidos" {
     ovpn_config_set OVPN_REMOTE_HOST vpn.exemplo.com
     ovpn_config_set OVPN_REMOTE_HOST_2 vpn2.exemplo.com

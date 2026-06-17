@@ -20,18 +20,24 @@ ovpn_ccd_dir() {
     printf '%s' "${OVPN_SERVER_DIR}/ccd"
 }
 
-# Retorna o próximo IP livre na faixa (.2 .. .254). Falha se a faixa encher.
-# Lê os IPs já atribuídos direto dos arquivos do ccd (campo do ifconfig-push),
-# sem depender de busca recursiva no sistema de arquivos.
+# Retorna o próximo IP livre no espaço da VPN (derivado de OVPN_SUBNET_V4 +
+# OVPN_NETMASK_V4, de qualquer máscara — /24, /22, ...). A faixa vai de rede+2
+# (.0 = rede, .1 = servidor) até broadcast-1. Falha se o espaço encher. Lê os
+# IPs já atribuídos direto dos arquivos do ccd (campo do ifconfig-push).
 ovpn_ccd_next_free_ip() {
-    local dir ip i used
+    local dir ip i used mask_int network bcast first last
     dir="$(ovpn_ccd_dir)"
     mkdir -p "${dir}"
     # Lista dos IPs já usados, separados por ESPAÇO (o $() junta com quebra de
     # linha; o tr normaliza para o teste de pertencimento abaixo funcionar).
     used=" $(awk '/ifconfig-push/ {print $2}' "${dir}"/* 2>/dev/null | tr '\n' ' ') "
-    for i in $(seq 2 254); do
-        ip="${OVPN_VPN_PREFIX_V4}.${i}"
+    mask_int="$(ovpn_ip_to_int "${OVPN_NETMASK_V4}")"
+    network=$(( $(ovpn_ip_to_int "${OVPN_SUBNET_V4}") & mask_int ))
+    bcast=$(( network | (~mask_int & 0xFFFFFFFF) ))
+    first=$(( network + 2 ))
+    last=$(( bcast - 1 ))
+    for (( i = first; i <= last; i++ )); do
+        ip="$(ovpn_int_to_ip "${i}")"
         case "${used}" in
             *" ${ip} "*) ;;   # já em uso — pula
             *) printf '%s' "${ip}"; return 0 ;;
@@ -53,7 +59,7 @@ ovpn_ccd_assign() {
         return 0
     fi
 
-    ip="$(ovpn_ccd_next_free_ip)" || ovpn_die "Sem IPs livres na faixa ${OVPN_VPN_PREFIX_V4}.0/24."
+    ip="$(ovpn_ccd_next_free_ip)" || ovpn_die "Sem IPs livres no espaço ${OVPN_SUBNET_V4}/$(ovpn_netmask_to_plen "${OVPN_NETMASK_V4}")."
     printf 'ifconfig-push %s %s\n' "${ip}" "${OVPN_NETMASK_V4}" > "${file}"
     printf '%s' "${ip}"
 }

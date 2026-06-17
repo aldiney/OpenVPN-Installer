@@ -25,6 +25,41 @@ ovpn_sysctl_set() {
     sysctl -w "${key}=${value}" >/dev/null 2>&1 || true
 }
 
+# --- Aritmética de IPv4 (para alocar em espaços de qualquer máscara) -------
+
+# IP dotted (a.b.c.d) -> inteiro de 32 bits.
+ovpn_ip_to_int() {
+    local IFS=. a b c d
+    read -r a b c d <<< "$1"
+    printf '%s' "$(( (a << 24) + (b << 16) + (c << 8) + d ))"
+}
+
+# Inteiro de 32 bits -> IP dotted.
+ovpn_int_to_ip() {
+    local n="$1"
+    printf '%s.%s.%s.%s' "$(( (n >> 24) & 255 ))" "$(( (n >> 16) & 255 ))" "$(( (n >> 8) & 255 ))" "$(( n & 255 ))"
+}
+
+# Máscara dotted (255.255.252.0) -> prefix length (22). Conta os bits ligados.
+ovpn_netmask_to_plen() {
+    local n plen=0
+    n="$(ovpn_ip_to_int "$1")"
+    while (( n > 0 )); do
+        plen=$(( plen + (n & 1) ))
+        n=$(( n >> 1 ))
+    done
+    printf '%s' "${plen}"
+}
+
+# Prefix length (22) -> máscara dotted (255.255.252.0).
+ovpn_plen_to_netmask() {
+    local plen="$1" mask=0
+    if (( plen > 0 )); then
+        mask=$(( (0xFFFFFFFF << (32 - plen)) & 0xFFFFFFFF ))
+    fi
+    ovpn_int_to_ip "${mask}"
+}
+
 # Aborta com uma mensagem de erro no stderr e código de saída 1.
 ovpn_die() {
     printf 'ERRO  %s\n' "$*" >&2
