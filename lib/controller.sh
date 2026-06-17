@@ -274,6 +274,62 @@ ovpn_action_dualhub_link_forwarding() {
     ovpn_dualhub_link_forwarding "${link}"
 }
 
+# Detecta o modo IP do servidor instalado a partir do server.conf (para não
+# rebaixar dual-stack ao re-renderizar). Devolve ipv4, ipv6 ou dual.
+_ovpn_detect_server_mode() {
+    local conf has4=0 has6=0
+    conf="$(ovpn_server_conf_path)"
+    if [[ -f "${conf}" ]]; then
+        if grep -q '^server ' "${conf}"; then has4=1; fi
+        if grep -q '^server-ipv6 ' "${conf}"; then has6=1; fi
+    fi
+    if [[ "${has4}" == 1 && "${has6}" == 1 ]]; then printf 'dual'
+    elif [[ "${has6}" == 1 ]]; then printf 'ipv6'
+    else printf 'ipv4'; fi
+}
+
+# Ativa o IP estável global (roteamento dinâmico OSPF): instala o FRR, re-renderiza
+# o servidor no modo dinâmico (hooks + status), gera o FRR/OSPF e o reconciliador,
+# sobe o enlace dedicado (core ou spoke conforme OVPN_HUB_ROLE) e habilita tudo.
+# Sequência fina; a lógica mora nos módulos frr/route_reconcile/link/server_config.
+ovpn_action_enable_dynrouting() {
+    local mode
+    mode="$(_ovpn_detect_server_mode)"
+    ovpn_log_warn "Isto ATIVA o roteamento dinâmico (OSPF) e re-renderiza o servidor."
+    ovpn_log_warn "Pode reatribuir IPs dos clientes para o espaço estável — ver docs/dual-hub e ADR 0005."
+    ovpn_ui_confirm "Ativar o IP estável global (roteamento dinâmico) agora?" || return 0
+
+    ovpn_config_set OVPN_DYNROUTING on
+    export OVPN_DYNROUTING=on
+    ovpn_frr_ensure || return 1
+
+    ovpn_server_render "${mode}"
+    ovpn_server_render_hooks
+
+    local plen transport_plen rid
+    plen="$(ovpn_netmask_to_plen "${OVPN_NETMASK_V4}")"
+    transport_plen="$(ovpn_netmask_to_plen "${OVPN_TRANSPORT_MASK_V4:-255.255.255.0}")"
+    rid="0.0.0.${OVPN_HUB_ID:-1}"
+    ovpn_frr_render_daemons
+    ovpn_frr_render_ospf "${rid}" "${OVPN_SUBNET_V4}" "${plen}" \
+        "${OVPN_TRANSPORT_NET_V4:-10.255.0.0}/${transport_plen}" \
+        "${OVPN_OSPF_AREA:-0.0.0.0}" "${OVPN_LINK_IFACE:-ovpn-link}"
+    ovpn_reconcile_install_units
+
+    if [[ "${OVPN_HUB_ROLE:-core}" == "core" ]]; then
+        ovpn_link_render_core "${OVPN_LINK_PORT:-1195}"
+        ovpn_firewall_open_port "${OVPN_LINK_PORT:-1195}" "${OVPN_PROTO:-udp}"
+        systemctl enable --now "openvpn-server@${OVPN_LINK_NAME:-link}"
+    else
+        ovpn_link_render_spoke "${OVPN_REMOTE_HOST}" "${OVPN_LINK_PORT:-1195}" "link-${OVPN_HUB_ID:-2}"
+        systemctl enable --now "openvpn-client@${OVPN_LINK_NAME:-link}"
+    fi
+
+    ovpn_frr_enable
+    systemctl restart "openvpn-server@${OVPN_SERVER_NAME}"
+    ovpn_log_ok "IP estável global ativado (papel ${OVPN_HUB_ROLE:-core})."
+}
+
 # Submenu do dual-hub ativo-ativo.
 ovpn_menu_dualhub() {
     local choice
@@ -285,7 +341,8 @@ ovpn_menu_dualhub() {
             "Registrar hub par (enlace + iroute) — no hub A" \
             "Anunciar a sub-rede do hub par aos clientes — no hub B" \
             "Ativar encaminhamento do enlace (no hub que conecta)" \
-            "Definir/alterar o 2º hub dos clientes (failover)"
+            "Definir/alterar o 2º hub dos clientes (failover)" \
+            "Rede única — IP estável global (OSPF/FRR)"
         printf '0. Voltar\n'
         read -r -p "Escolha uma opção: " choice || return 0
         case "${choice}" in
@@ -296,6 +353,7 @@ ovpn_menu_dualhub() {
             5) ovpn_action_dualhub_announce ;;
             6) ovpn_action_dualhub_link_forwarding ;;
             7) ovpn_action_set_host_2 ;;
+            8) ovpn_action_enable_dynrouting ;;
             0) return 0 ;;
             *) ovpn_log_warn "Opção inválida." ;;
         esac
