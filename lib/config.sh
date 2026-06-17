@@ -30,6 +30,13 @@ ovpn_config_apply() {
     if [[ -n "${v}" ]]; then export OVPN_REMOTE_HOST="${v}"; fi
     v="$(ovpn_config_get OVPN_REMOTE_HOST_2)"
     if [[ -n "${v}" ]]; then export OVPN_REMOTE_HOST_2="${v}"; fi
+    # Chaves do roteamento dinâmico / IP estável global (passagem direta).
+    local k
+    for k in OVPN_DYNROUTING OVPN_DOMAIN_ID OVPN_HUB_ID OVPN_HUB_ROLE \
+             OVPN_TRANSPORT_NET_V4 OVPN_OSPF_AREA OVPN_LINK_PORT; do
+        v="$(ovpn_config_get "${k}")"
+        if [[ -n "${v}" ]]; then export "${k}=${v}"; fi
+    done
     return 0
 }
 
