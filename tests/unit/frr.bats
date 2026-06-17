@@ -27,7 +27,8 @@ setup() {
     ovpn_frr_render_ospf 0.0.0.1 10.80.0.0 22 10.255.0.0/30 0.0.0.0 ovpn-link
     local c="${OVPN_FRR_OSPF_CONF}"
     grep -q 'ospf router-id 0.0.0.1' "${c}"
-    grep -q 'redistribute kernel route-map ONLY-CLIENT-32' "${c}"
+    grep -q 'redistribute static route-map ONLY-CLIENT-32' "${c}"
+    ! grep -q 'redistribute kernel' "${c}"
     grep -q 'ip prefix-list CLIENT32 seq 5 permit 10.80.0.0/22 ge 32 le 32' "${c}"
     grep -q 'route-map ONLY-CLIENT-32 permit 10' "${c}"
     grep -q 'network 10.255.0.0/30 area 0.0.0.0' "${c}"

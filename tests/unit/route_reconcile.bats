@@ -49,10 +49,33 @@ EOF
     [[ "$output" != *"route del 10.80.0.5"* ]]
 }
 
+@test "ovpn_reconcile_apply: status ausente NÃO apaga rotas (sem wipe)" {
+    export STUB_IP_ROUTES="10.80.0.5/32 dev tun0 proto static metric 50"
+    export OVPN_TUN_IFACE=tun0
+    run ovpn_reconcile_apply "${BATS_TEST_TMPDIR}/inexistente"
+    [ "$status" -eq 0 ]
+    run stub_calls ip
+    [[ "$output" != *"route del"* ]]
+}
+
+@test "ovpn_reconcile_install_units: prepara o spool gravável pelo grupo e a tmpfiles.d" {
+    export OVPN_RECONCILE_BIN="${BATS_TEST_TMPDIR}/bin/route-reconcile.sh"
+    export OVPN_SYSTEMD_DIR="${BATS_TEST_TMPDIR}/systemd"
+    export OVPN_RECONCILE_SPOOL="${BATS_TEST_TMPDIR}/run/openvpn-installer/reconcile.trigger"
+    export OVPN_TMPFILES_CONF="${BATS_TEST_TMPDIR}/tmpfiles/openvpn-installer.conf"
+    export OVPN_LIB_DIR="${PROJECT_ROOT}/lib"
+    ovpn_reconcile_install_units
+    [ -d "${BATS_TEST_TMPDIR}/run/openvpn-installer" ]
+    [ -f "${OVPN_RECONCILE_SPOOL}" ]
+    grep -q "d ${BATS_TEST_TMPDIR}/run/openvpn-installer 0775 root nogroup" "${OVPN_TMPFILES_CONF}"
+    grep -q "f ${OVPN_RECONCILE_SPOOL} 0664 root nogroup" "${OVPN_TMPFILES_CONF}"
+}
+
 @test "ovpn_reconcile_install_units: escreve o entrypoint + units e habilita via systemd" {
     export OVPN_RECONCILE_BIN="${BATS_TEST_TMPDIR}/bin/route-reconcile.sh"
     export OVPN_SYSTEMD_DIR="${BATS_TEST_TMPDIR}/systemd"
     export OVPN_RECONCILE_SPOOL="${BATS_TEST_TMPDIR}/run/reconcile.trigger"
+    export OVPN_TMPFILES_CONF="${BATS_TEST_TMPDIR}/tmpfiles/openvpn-installer.conf"
     export OVPN_LIB_DIR="${PROJECT_ROOT}/lib"
     ovpn_reconcile_install_units
     [ -x "${OVPN_RECONCILE_BIN}" ]
