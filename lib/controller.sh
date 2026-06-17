@@ -317,10 +317,23 @@ ovpn_action_readdress_space() {
 # sobe o enlace dedicado (core ou spoke conforme OVPN_HUB_ROLE) e habilita tudo.
 # Sequência fina; a lógica mora nos módulos frr/route_reconcile/link/server_config.
 ovpn_action_enable_dynrouting() {
-    local mode
+    local mode hub_id="${OVPN_HUB_ID:-1}"
     mode="$(_ovpn_detect_server_mode)"
+    # OVPN_HUB_ID vira o router-id OSPF (0.0.0.<id>) e precisa ser único no
+    # domínio. Sem validar, dois hubs com id=1 quebram a adjacência OSPF.
+    if ! [[ "${hub_id}" =~ ^[0-9]+$ ]] || (( hub_id < 1 || hub_id > 254 )); then
+        ovpn_log_warn "OVPN_HUB_ID inválido (use inteiro 1..254, único no domínio). Rode 'Definir parâmetros do domínio' antes."
+        return 1
+    fi
+    if [[ "${OVPN_HUB_ROLE:-core}" == "spoke" && -z "${OVPN_CORE_HOST:-}" ]]; then
+        ovpn_log_warn "Spoke sem o host do hub core. Rode 'Definir parâmetros do domínio' antes."
+        return 1
+    fi
     ovpn_log_warn "Isto ATIVA o roteamento dinâmico (OSPF) e re-renderiza o servidor."
-    ovpn_log_warn "Pode reatribuir IPs dos clientes para o espaço estável — ver docs/dual-hub e ADR 0005."
+    ovpn_log_warn "Pode reatribuir IPs dos clientes para o espaço estável — ver docs/ip-estavel.md e ADR 0005."
+    if [[ "${mode}" != "ipv4" ]]; then
+        ovpn_log_warn "O IP estável global é IPv4-only nesta versão; o IPv6 dos clientes segue sem roam dinâmico."
+    fi
     ovpn_ui_confirm "Ativar o IP estável global (roteamento dinâmico) agora?" || return 0
 
     ovpn_config_set OVPN_DYNROUTING on
@@ -333,7 +346,7 @@ ovpn_action_enable_dynrouting() {
     local plen transport_plen rid
     plen="$(ovpn_netmask_to_plen "${OVPN_NETMASK_V4}")"
     transport_plen="$(ovpn_netmask_to_plen "${OVPN_TRANSPORT_MASK_V4:-255.255.255.0}")"
-    rid="0.0.0.${OVPN_HUB_ID:-1}"
+    rid="0.0.0.${hub_id}"
     ovpn_frr_render_daemons
     ovpn_frr_render_ospf "${rid}" "${OVPN_SUBNET_V4}" "${plen}" \
         "${OVPN_TRANSPORT_NET_V4:-10.255.0.0}/${transport_plen}" \
@@ -345,13 +358,69 @@ ovpn_action_enable_dynrouting() {
         ovpn_firewall_open_port "${OVPN_LINK_PORT:-1195}" "${OVPN_PROTO:-udp}"
         systemctl enable --now "openvpn-server@${OVPN_LINK_NAME:-link}"
     else
-        ovpn_link_render_spoke "${OVPN_REMOTE_HOST}" "${OVPN_LINK_PORT:-1195}" "link-${OVPN_HUB_ID:-2}"
+        ovpn_link_render_spoke "${OVPN_CORE_HOST}" "${OVPN_LINK_PORT:-1195}" "link-${hub_id}"
         systemctl enable --now "openvpn-client@${OVPN_LINK_NAME:-link}"
     fi
+
+    # Sem isto o pacote inter-hub (entra pela ovpn-link, sai pelo tun do cliente)
+    # morre no forward de kernel — habilita/persiste ip_forward e libera o FORWARD.
+    ovpn_dualhub_link_forwarding "${OVPN_LINK_IFACE:-ovpn-link}"
 
     ovpn_frr_enable
     systemctl restart "openvpn-server@${OVPN_SERVER_NAME}"
     ovpn_log_ok "IP estável global ativado (papel ${OVPN_HUB_ROLE:-core})."
+}
+
+# Define e persiste os parâmetros do domínio do IP estável global. Pré-requisito
+# da ativação: sem isto, os defaults (hub_id=1, core, domínio default) fariam
+# TODO hub virar core com router-id duplicado. Valida o id (1..254) e, no spoke,
+# pede o host do hub core (remote do enlace — separado do host dos clientes).
+ovpn_action_set_domain_params() {
+    local domain hub_id role space mask core
+    read -r -p "ID do domínio (separa implantações) [${OVPN_DOMAIN_ID:-default}]: " domain || return 1
+    [[ -n "${domain}" ]] || domain="${OVPN_DOMAIN_ID:-default}"
+    read -r -p "ID deste hub (1..254, ÚNICO no domínio) [${OVPN_HUB_ID:-1}]: " hub_id || return 1
+    [[ -n "${hub_id}" ]] || hub_id="${OVPN_HUB_ID:-1}"
+    if ! [[ "${hub_id}" =~ ^[0-9]+$ ]] || (( hub_id < 1 || hub_id > 254 )); then
+        ovpn_log_warn "ID do hub inválido (use inteiro 1..254)."; return 1
+    fi
+    read -r -p "Papel deste hub [core/spoke] (${OVPN_HUB_ROLE:-core}): " role || return 1
+    [[ -n "${role}" ]] || role="${OVPN_HUB_ROLE:-core}"
+    case "${role}" in core|spoke) ;; *) ovpn_log_warn "Papel inválido (core ou spoke)."; return 1 ;; esac
+    read -r -p "Espaço da VPN /22 (rede) [10.80.0.0]: " space || return 1
+    [[ -n "${space}" ]] || space="10.80.0.0"
+    read -r -p "Máscara do espaço [255.255.252.0]: " mask || true
+    [[ -n "${mask}" ]] || mask="255.255.252.0"
+
+    ovpn_config_set OVPN_DOMAIN_ID "${domain}"; export OVPN_DOMAIN_ID="${domain}"
+    ovpn_config_set OVPN_HUB_ID "${hub_id}";    export OVPN_HUB_ID="${hub_id}"
+    ovpn_config_set OVPN_HUB_ROLE "${role}";    export OVPN_HUB_ROLE="${role}"
+    ovpn_config_set OVPN_SUBNET_V4 "${space}";  export OVPN_SUBNET_V4="${space}"
+    ovpn_config_set OVPN_NETMASK_V4 "${mask}";  export OVPN_NETMASK_V4="${mask}"
+    if [[ "${role}" == "spoke" ]]; then
+        read -r -p "IP/domínio do hub CORE (remote do enlace): " core || return 1
+        [[ -n "${core}" ]] || { ovpn_log_warn "O spoke precisa do host do core."; return 1; }
+        ovpn_config_set OVPN_CORE_HOST "${core}"; export OVPN_CORE_HOST="${core}"
+    fi
+    ovpn_log_ok "Parâmetros do domínio salvos (domínio ${domain}, hub ${hub_id}, papel ${role}, espaço ${space}/$(ovpn_netmask_to_plen "${mask}"))."
+}
+
+# Exporta o mapa cliente->IP (bundle verificável) para levar aos demais hubs.
+ovpn_action_route_sync_export() {
+    local out
+    read -r -p "Arquivo de saída do mapa de clientes (ex.: /root/mapa.tar.gz): " out || return 1
+    [[ -n "${out}" ]] || { ovpn_log_warn "Caminho vazio."; return 1; }
+    ovpn_ui_confirm "Exportar o mapa de clientes para ${out}?" || return 0
+    ovpn_route_sync_export "${out}"
+}
+
+# Importa o mapa cliente->IP de outro hub (recusa bundle de outro domínio).
+ovpn_action_route_sync_import() {
+    local in
+    read -r -p "Arquivo do mapa a importar: " in || return 1
+    [[ -f "${in}" ]] || { ovpn_log_warn "Arquivo não encontrado: ${in}"; return 1; }
+    ovpn_ui_confirm "Importar o mapa de clientes de ${in}?" || return 0
+    ovpn_route_sync_import "${in}"
 }
 
 # Submenu do dual-hub ativo-ativo.
@@ -367,7 +436,10 @@ ovpn_menu_dualhub() {
             "Ativar encaminhamento do enlace (no hub que conecta)" \
             "Definir/alterar o 2º hub dos clientes (failover)" \
             "Rede única — IP estável global (OSPF/FRR)" \
-            "Migrar a rede para o espaço estável (re-endereçar /24->/22)"
+            "Migrar a rede para o espaço estável (re-endereçar /24->/22)" \
+            "Definir parâmetros do domínio (papel/hub-id/domínio/espaço)" \
+            "Exportar mapa de clientes (bundle)" \
+            "Importar mapa de clientes (bundle)"
         printf '0. Voltar\n'
         read -r -p "Escolha uma opção: " choice || return 0
         case "${choice}" in
@@ -380,6 +452,9 @@ ovpn_menu_dualhub() {
             7) ovpn_action_set_host_2 ;;
             8) ovpn_action_enable_dynrouting ;;
             9) ovpn_action_readdress_space ;;
+            10) ovpn_action_set_domain_params ;;
+            11) ovpn_action_route_sync_export ;;
+            12) ovpn_action_route_sync_import ;;
             0) return 0 ;;
             *) ovpn_log_warn "Opção inválida." ;;
         esac

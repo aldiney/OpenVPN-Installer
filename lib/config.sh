@@ -33,7 +33,7 @@ ovpn_config_apply() {
     # Chaves do roteamento dinâmico / IP estável global (passagem direta).
     local k
     for k in OVPN_DYNROUTING OVPN_DOMAIN_ID OVPN_HUB_ID OVPN_HUB_ROLE \
-             OVPN_TRANSPORT_NET_V4 OVPN_OSPF_AREA OVPN_LINK_PORT; do
+             OVPN_TRANSPORT_NET_V4 OVPN_OSPF_AREA OVPN_LINK_PORT OVPN_CORE_HOST; do
         v="$(ovpn_config_get "${k}")"
         if [[ -n "${v}" ]]; then export "${k}=${v}"; fi
     done

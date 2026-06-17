@@ -62,13 +62,14 @@ setup() {
 
 @test "ovpn_action_enable_dynrouting: confirma (s) persiste e ativa (core)" {
     export OVPN_HUB_ROLE=core
-    ovpn_frr_ensure()             { :; }
-    ovpn_frr_render_daemons()     { :; }
-    ovpn_frr_render_ospf()        { :; }
-    ovpn_frr_enable()             { :; }
+    ovpn_frr_ensure()              { :; }
+    ovpn_frr_render_daemons()      { :; }
+    ovpn_frr_render_ospf()         { :; }
+    ovpn_frr_enable()              { :; }
     ovpn_reconcile_install_units() { :; }
-    ovpn_link_render_core()       { :; }
-    ovpn_firewall_open_port()     { :; }
+    ovpn_link_render_core()        { :; }
+    ovpn_firewall_open_port()      { :; }
+    ovpn_dualhub_link_forwarding() { :; }
     run ovpn_action_enable_dynrouting <<< "s"
     [ "$status" -eq 0 ]
     [ "$(ovpn_config_get OVPN_DYNROUTING)" = "on" ]
@@ -81,6 +82,40 @@ setup() {
     run ovpn_action_enable_dynrouting <<< "n"
     [ "$status" -eq 0 ]
     [ -z "$(ovpn_config_get OVPN_DYNROUTING)" ]
+}
+
+@test "ovpn_action_enable_dynrouting: aborta com HUB_ID inválido" {
+    export OVPN_HUB_ID=999
+    run ovpn_action_enable_dynrouting <<< "s"
+    [ "$status" -ne 0 ]
+    [ -z "$(ovpn_config_get OVPN_DYNROUTING)" ]
+}
+
+@test "ovpn_action_enable_dynrouting: spoke sem host do core aborta" {
+    export OVPN_HUB_ID=2
+    export OVPN_HUB_ROLE=spoke
+    run ovpn_action_enable_dynrouting <<< "s"
+    [ "$status" -ne 0 ]
+}
+
+@test "ovpn_action_set_domain_params: persiste e valida (core)" {
+    run ovpn_action_set_domain_params <<< $'acme\n2\ncore\n10.80.0.0\n255.255.252.0'
+    [ "$status" -eq 0 ]
+    [ "$(ovpn_config_get OVPN_HUB_ID)" = "2" ]
+    [ "$(ovpn_config_get OVPN_HUB_ROLE)" = "core" ]
+    [ "$(ovpn_config_get OVPN_DOMAIN_ID)" = "acme" ]
+    [ "$(ovpn_config_get OVPN_SUBNET_V4)" = "10.80.0.0" ]
+}
+
+@test "ovpn_action_set_domain_params: HUB_ID fora da faixa é recusado" {
+    run ovpn_action_set_domain_params <<< $'acme\n999\ncore\n10.80.0.0\n255.255.252.0'
+    [ "$status" -ne 0 ]
+}
+
+@test "ovpn_action_set_domain_params: spoke persiste o host do core" {
+    run ovpn_action_set_domain_params <<< $'acme\n2\nspoke\n10.80.0.0\n255.255.252.0\nhubA.exemplo.com'
+    [ "$status" -eq 0 ]
+    [ "$(ovpn_config_get OVPN_CORE_HOST)" = "hubA.exemplo.com" ]
 }
 
 @test "ovpn_action_readdress_space: detecta a rede atual, re-endereça e persiste" {
