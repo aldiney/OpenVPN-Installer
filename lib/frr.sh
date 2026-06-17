@@ -71,6 +71,9 @@ route-map ONLY-CLIENT-32 permit 10
  match ip address prefix-list CLIENT32
 route-map ONLY-CLIENT-32 deny 20
 !
+interface ${link}
+ ip ospf network point-to-multipoint
+!
 OSPF
 }
 
