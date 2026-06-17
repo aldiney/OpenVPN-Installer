@@ -77,9 +77,12 @@ interface ${link}
 OSPF
 }
 
-# Habilita e inicia o FRR.
+# Habilita e (RE)inicia o FRR. Precisa de restart (não `enable --now`): se o frr
+# já estiver rodando (o apt o inicia ao instalar), `enable --now` é no-op e o
+# /etc/frr/daemons recém-escrito (ospfd=yes) nunca é aplicado — o ospfd não sobe.
 ovpn_frr_enable() {
-    systemctl enable --now frr
+    systemctl enable frr
+    systemctl restart frr
 }
 
 # Recarrega o FRR para aplicar mudanças de config (idempotente).
