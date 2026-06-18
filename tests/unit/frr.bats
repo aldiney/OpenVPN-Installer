@@ -36,6 +36,8 @@ setup() {
     # As /32 do reconciliador são proto static, mas o zebra as vê como KERNEL —
     # confirmado em host real: redistribute kernel (não static) é o que pega.
     grep -q 'redistribute kernel route-map ONLY-CLIENT-32' "${c}"
+    # redistribute connected (filtrado p/ /32) anuncia o IP de identidade do hub.
+    grep -q 'redistribute connected route-map ONLY-CLIENT-32' "${c}"
     ! grep -q 'redistribute static' "${c}"
     grep -q 'ip prefix-list CLIENT32 seq 5 permit 10.80.0.0/22 ge 32 le 32' "${c}"
     grep -q 'route-map ONLY-CLIENT-32 permit 10' "${c}"
@@ -43,7 +45,6 @@ setup() {
     grep -q 'ip ospf network point-to-multipoint' "${c}"
     # Sintaxe NOVA p/ ativar a interface (a deprecada 'no passive-interface' não aplica).
     grep -q 'no ip ospf passive' "${c}"
-    ! grep -q 'redistribute connected' "${c}"
 }
 
 @test "ovpn_frr_apply: aplica o ospfd.conf no daemon (vtysh -f) e persiste" {
