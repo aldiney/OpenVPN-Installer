@@ -13,6 +13,12 @@ setup() {
     export OVPN_FRR_DIR="${BATS_TEST_TMPDIR}/frr"
     export OVPN_FRR_DAEMONS="${OVPN_FRR_DIR}/daemons"
     export OVPN_FRR_OSPF_CONF="${OVPN_FRR_DIR}/ospfd.conf"
+    export OVPN_FRR_VTYSH_CONF="${OVPN_FRR_DIR}/vtysh.conf"
+}
+
+@test "ovpn_frr_render_vtysh: desliga o integrated-vtysh-config (carrega o ospfd.conf)" {
+    ovpn_frr_render_vtysh
+    grep -q '^no service integrated-vtysh-config$' "${OVPN_FRR_VTYSH_CONF}"
 }
 
 @test "ovpn_frr_render_daemons: habilita só o ospfd (+ zebra), não o bgpd" {
