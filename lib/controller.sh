@@ -348,6 +348,7 @@ ovpn_action_enable_dynrouting() {
     transport_plen="$(ovpn_netmask_to_plen "${OVPN_TRANSPORT_MASK_V4:-255.255.255.0}")"
     rid="0.0.0.${hub_id}"
     ovpn_frr_render_daemons
+    ovpn_frr_render_vtysh
     ovpn_frr_render_ospf "${rid}" "${OVPN_SUBNET_V4}" "${plen}" \
         "${OVPN_TRANSPORT_NET_V4:-10.255.0.0}/${transport_plen}" \
         "${OVPN_OSPF_AREA:-0.0.0.0}" "${OVPN_LINK_IFACE:-ovpn-link}"

@@ -12,11 +12,21 @@
 : "${OVPN_FRR_DIR:=/etc/frr}"
 : "${OVPN_FRR_DAEMONS:=${OVPN_FRR_DIR}/daemons}"
 : "${OVPN_FRR_OSPF_CONF:=${OVPN_FRR_DIR}/ospfd.conf}"
+: "${OVPN_FRR_VTYSH_CONF:=${OVPN_FRR_DIR}/vtysh.conf}"
 
 # Garante o FRR instalado, passando pelo gate de dependências (regra dos 7 dias
 # + confirmação [s/N]).
 ovpn_frr_ensure() {
     ovpn_deps_ensure frr
+}
+
+# Desliga o integrated-vtysh-config. O padrão do FRR no Debian/Ubuntu é
+# `service integrated-vtysh-config`, que faz o FRR ler SÓ o /etc/frr/frr.conf e
+# IGNORAR os arquivos por-daemon — inclusive o nosso ospfd.conf. Sem isto, a
+# config OSPF nunca é carregada (o ospfd sobe sem `router ospf`).
+ovpn_frr_render_vtysh() {
+    mkdir -p "${OVPN_FRR_DIR}"
+    printf 'no service integrated-vtysh-config\n' > "${OVPN_FRR_VTYSH_CONF}"
 }
 
 # Escreve /etc/frr/daemons habilitando só o ospfd (+ zebra, exigido).
