@@ -52,11 +52,21 @@ Submenu **15 → 8 (Rede única — IP estável global)**. Sob confirmação, o 
 (`openvpn-server@link` no core; `openvpn-client@link` no spoke); **habilita o encaminhamento**
 inter-hub (ip_forward + FORWARD); habilita os serviços e reinicia o servidor.
 
-### 4. Sincronizar o mapa de clientes (ANTES de conectar clientes no 2º hub)
+### 4. Sincronizar o mapa de clientes (automático, com 1 autorização)
 
-No hub **primário** (que aloca os IPs): **15 → 11** exporta o mapa (bundle verificável). Leve ao
-outro hub e **15 → 12** importa. Só assim cada hub atribui o **mesmo IP** ao mesmo cliente — faça
-isto **antes** de o cliente conectar no 2º hub, senão ele pega um IP dinâmico lá.
+O mapa é **sincronizado sozinho**: o spoke puxa o mapa do primário pelo enlace (timer a cada
+~2 min), e o primário **republica** a cada cliente criado/revogado. Só falta **autorizar a chave**
+uma vez:
+
+1. Ao ativar o spoke (passo 3), ele gera uma **chave SSH** e mostra a **pública** no terminal.
+2. No **primário**: menu **15 → 13** (Autorizar spoke) → cole essa chave pública. Pronto — a
+   chave fica restrita (forced-command: só LÊ o mapa, sem shell), e o spoke passa a puxar o mapa
+   automaticamente pelo enlace já cifrado.
+
+Assim cada hub atribui o **mesmo IP** ao mesmo cliente, sem passo manual a cada cliente novo.
+
+> **Fallback manual**: se preferir (ou para o bootstrap inicial), dá para sincronizar à mão —
+> **15 → 11** exporta o bundle no primário e **15 → 12** importa no spoke.
 
 ## Verificação
 
