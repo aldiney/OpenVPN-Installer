@@ -223,6 +223,7 @@ ovpn_dynrouting_status() {
         link="INATIVO"
     fi
     printf '\n=== IP estável global (papel %s) ===\n' "${OVPN_HUB_ROLE:-core}"
+    printf 'IP deste hub (VPN): %s   <- endereço estável p/ alcançar ESTE hub\n' "$(ovpn_hub_identity_ip)"
     printf 'enlace inter-hub  : %s\n' "${link}"
     printf 'FRR / ospfd       : %s / %s\n' "$(_ovpn_status_active frr)" "$(_ovpn_status_proc ospfd)"
     printf 'vizinhos OSPF Full: %s\n' "$(_ovpn_status_ospf_n)"
@@ -411,6 +412,10 @@ ovpn_action_enable_dynrouting() {
     # Sem isto o pacote inter-hub (entra pela ovpn-link, sai pelo tun do cliente)
     # morre no forward de kernel — habilita/persiste ip_forward e libera o FORWARD.
     ovpn_dualhub_link_forwarding "${OVPN_LINK_IFACE:-ovpn-link}"
+
+    # IP de identidade deste hub (/32 próprio na dummy ovpn-self), p/ um cliente
+    # endereçar ESTE hub. Sobe antes do FRR p/ o OSPF já anunciá-lo (connected).
+    ovpn_hub_identity_install
 
     ovpn_frr_enable
     ovpn_frr_apply

@@ -13,7 +13,7 @@ LIB_DIR="${SCRIPT_DIR}/lib"
 export OVPN_INSTALL_SH="${SCRIPT_DIR}/install.sh"
 
 # Ordem importa: módulos básicos primeiro, depois os de domínio e o controller.
-for module in core log ui config os_detect deps pki wizard_ipproto server_config ccd client_profile mikrotik_profile firewall gateway frr route_reconcile route_sync mapsync link hub_sync dualhub lifecycle upgrade syscmd controller; do
+for module in core log ui config os_detect deps pki wizard_ipproto server_config ccd client_profile mikrotik_profile firewall gateway frr route_reconcile route_sync mapsync link hub_identity hub_sync dualhub lifecycle upgrade syscmd controller; do
     # shellcheck source=/dev/null
     source "${LIB_DIR}/${module}.sh"
 done

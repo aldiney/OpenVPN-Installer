@@ -18,6 +18,7 @@ setup() {
     load_lib firewall
     load_lib route_sync
     load_lib mapsync
+    load_lib hub_identity
     load_lib hub_sync
     load_lib dualhub
     load_lib upgrade
@@ -29,6 +30,7 @@ setup() {
     run ovpn_dynrouting_status
     [ "$status" -eq 0 ]
     [[ "$output" == *"IP estável global"* ]]
+    [[ "$output" == *"IP deste hub (VPN)"* ]]
     [[ "$output" == *"vizinhos OSPF Full"* ]]
     [[ "$output" == *"mapsync"* ]]
 }
@@ -86,6 +88,10 @@ setup() {
 
 @test "ovpn_action_enable_dynrouting: confirma (s) persiste e ativa (core)" {
     export OVPN_HUB_ROLE=core
+    export OVPN_HUB_ID=1
+    export OVPN_SUBNET_V4=10.80.0.0
+    export OVPN_NETMASK_V4=255.255.252.0
+    export OVPN_SYSTEMD_DIR="${BATS_TEST_TMPDIR}/systemd"
     ovpn_frr_ensure()              { :; }
     ovpn_frr_render_daemons()      { :; }
     ovpn_frr_render_ospf()         { :; }
@@ -99,6 +105,9 @@ setup() {
     run ovpn_action_enable_dynrouting <<< "s"
     [ "$status" -eq 0 ]
     [ "$(ovpn_config_get OVPN_DYNROUTING)" = "on" ]
+    # A orquestração instala o IP de identidade deste hub (/22 -> .241).
+    [ -f "${OVPN_SYSTEMD_DIR}/openvpn-hub-identity.service" ]
+    grep -q '10.80.3.241/32' "${OVPN_SYSTEMD_DIR}/openvpn-hub-identity.service"
     run stub_calls systemctl
     [[ "$output" == *"enable --now openvpn-server@link"* ]]
     [[ "$output" == *"restart openvpn-server@server"* ]]

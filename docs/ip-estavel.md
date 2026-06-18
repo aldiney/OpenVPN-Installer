@@ -16,6 +16,24 @@ IP em qualquer hub** — usando roteamento dinâmico (OSPF via FRR). Ver **ADR 0
   quando ele migra de hub. Um **reconciliador root** transforma a lista de conectados em rotas
   `/32`, e o **FRR** as distribui pelo **enlace dedicado** entre os hubs (interface `ovpn-link`).
 
+## Endereçar um hub ESPECÍFICO (IP de identidade)
+
+Como o servidor de **todo** hub fica no `.1` do espaço compartilhado, o `.1` não serve para falar
+com um hub em particular. Por isso, cada hub ganha um **IP de identidade próprio** — um `/32` fixo,
+reservado no **topo do espaço** e derivado do `HUB_ID`:
+
+| Hub | `HUB_ID` | IP de identidade (ex.: `10.80.0.0/22`) |
+|-----|----------|-----------------------------------------|
+| A   | 1        | `10.80.3.241`                            |
+| B   | 2        | `10.80.3.242`                            |
+| N   | `id`     | `<broadcast> - 15 + id`                  |
+
+Esse IP fica numa interface dummy (`ovpn-self`) e é anunciado pelo OSPF (`redistribute connected`,
+filtrado para `/32`), então **de qualquer cliente**, em **qualquer hub**, ele cai sempre no hub
+certo. Os **15 endereços do topo** (`.240`–`.254` num `/22`) ficam reservados para isso — o
+alocador de clientes para antes deles. Veja o IP deste hub no `sudo openvpn-installer status`
+(linha "IP deste hub (VPN)").
+
 ## Papéis e parâmetros (por hub)
 
 Defina-os pela **opção 10** do submenu (não edite o arquivo na mão):
