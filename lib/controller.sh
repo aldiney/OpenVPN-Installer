@@ -206,11 +206,39 @@ ovpn_action_upgrade() {
     ovpn_upgrade_report
 }
 
-# Mostra o status do servidor e os clientes cadastrados.
+# Seams pequenos de status (read-only).
+_ovpn_status_active() { systemctl is-active "$1" 2>/dev/null || true; }
+_ovpn_status_proc()   { if pgrep -x "$1" >/dev/null 2>&1; then printf 'running'; else printf 'parado'; fi; }
+_ovpn_status_ospf_n() { vtysh -c "show ip ospf neighbor" 2>/dev/null | grep -c 'Full' || true; }
+_ovpn_status_ospf_r() { vtysh -c "show ip route ospf" 2>/dev/null | grep -cE 'O.*/32' || true; }
+
+# Resumo do IP estável global (enlace + OSPF + reconciliador + mapsync). Read-only.
+ovpn_dynrouting_status() {
+    local link
+    if systemctl is-active "openvpn-server@${OVPN_LINK_NAME:-link}" >/dev/null 2>&1; then
+        link="link-server ativo"
+    elif systemctl is-active "openvpn-client@${OVPN_LINK_NAME:-link}" >/dev/null 2>&1; then
+        link="link-client ativo"
+    else
+        link="INATIVO"
+    fi
+    printf '\n=== IP estável global (papel %s) ===\n' "${OVPN_HUB_ROLE:-core}"
+    printf 'enlace inter-hub  : %s\n' "${link}"
+    printf 'FRR / ospfd       : %s / %s\n' "$(_ovpn_status_active frr)" "$(_ovpn_status_proc ospfd)"
+    printf 'vizinhos OSPF Full: %s\n' "$(_ovpn_status_ospf_n)"
+    printf 'rotas /32 (OSPF)  : %s\n' "$(_ovpn_status_ospf_r)"
+    printf 'reconciliador     : %s\n' "$(_ovpn_status_active openvpn-route-reconcile.timer)"
+    printf 'mapsync (timer)   : %s\n' "$(_ovpn_status_active openvpn-mapsync.timer)"
+}
+
+# Mostra o status do servidor e os clientes cadastrados (+ IP estável, se ativo).
 ovpn_action_status() {
     ovpn_server_status || ovpn_log_warn "Servidor não está ativo."
     printf 'Clientes:\n'
     ovpn_client_list
+    if [[ "${OVPN_DYNROUTING:-off}" == "on" ]]; then
+        ovpn_dynrouting_status
+    fi
 }
 
 # --- Dois hubs (ativo-ativo) ---------------------------------------------
