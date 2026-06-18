@@ -24,6 +24,28 @@ setup() {
     load_lib controller
 }
 
+@test "ovpn_dynrouting_status: imprime o resumo (enlace/OSPF/mapsync)" {
+    export OVPN_DYNROUTING=on
+    run ovpn_dynrouting_status
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"IP estável global"* ]]
+    [[ "$output" == *"vizinhos OSPF Full"* ]]
+    [[ "$output" == *"mapsync"* ]]
+}
+
+@test "ovpn_action_status: inclui o resumo do IP estável quando dinâmico" {
+    export OVPN_DYNROUTING=on
+    run ovpn_action_status
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"IP estável global"* ]]
+}
+
+@test "ovpn_action_status: NÃO mostra o IP estável no modo estático (default)" {
+    run ovpn_action_status
+    [ "$status" -eq 0 ]
+    [[ "$output" != *"IP estável global"* ]]
+}
+
 @test "ovpn_menu_main: mostra o menu e a opção 0 encerra" {
     run ovpn_menu_main <<< "0"
     [ "$status" -eq 0 ]

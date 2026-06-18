@@ -70,6 +70,12 @@ Assim cada hub atribui o **mesmo IP** ao mesmo cliente, sem passo manual a cada 
 
 ## Verificação
 
+A forma rápida — **um comando** que resume enlace, OSPF, reconciliador e mapsync:
+```
+sudo openvpn-installer status
+```
+(ou a opção **4 — Status do servidor** no menu, que inclui o resumo quando o modo dinâmico está
+ativo). Para detalhes:
 ```
 sudo systemctl status frr                  # ativo nos dois hubs
 sudo systemctl status openvpn-server@link  # no CORE

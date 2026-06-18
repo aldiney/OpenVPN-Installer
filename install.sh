@@ -26,6 +26,13 @@ ovpn_os_assert_supported
 ovpn_config_relocate_legacy
 ovpn_config_apply
 
+# Subcomando "status": mostra o resumo e sai (sem abrir o menu nem ofertar upgrade).
+# Uso: sudo openvpn-installer status
+if [[ "${1:-}" == "status" ]]; then
+    ovpn_action_status
+    exit 0
+fi
+
 # Se a instalação é de uma versão anterior, oferece aplicar as correções.
 if _ovpn_upgrade_should_offer; then
     ovpn_log_warn "Esta instalação foi feita por uma versão anterior. Há correções disponíveis."
