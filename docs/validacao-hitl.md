@@ -157,8 +157,9 @@ Tudo pelo menu (opção **15 — Dois hubs**). Guia completo em `docs/dual-hub.m
      aceitar o `/22` já definido no passo 1).
   3. Em cada hub: submenu **15 → 8** (Ativar IP estável global) — instala FRR, re-renderiza, sobe
      o enlace dedicado, o reconciliador **e habilita o encaminhamento inter-hub**.
-  4. **Sincronizar o mapa ANTES de conectar clientes no 2º hub**: no primário **15 → 11** (exportar);
-     levar o bundle ao outro hub e **15 → 12** (importar).
+  4. **Sincronização do mapa** (automática): o spoke (passo 3) mostra uma chave pública; no
+     primário, **15 → 13** autoriza-a. A partir daí o spoke puxa o mapa sozinho (timer) e o
+     primário republica a cada cliente. *(Fallback manual: 15 → 11 exportar / 15 → 12 importar.)*
   5. `sudo vtysh -c "show ip route ospf"` nos dois hubs: confirmar **só os `/32`** dos clientes
      (o `/22` conectado **não** vaza). No spoke, conferir `openvpn-client@link` ativo.
   6. Conectar um cliente no core (recebe ex.: `10.80.0.5`); conferir que outro cliente o alcança
