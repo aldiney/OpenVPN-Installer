@@ -66,6 +66,7 @@ setup() {
     ovpn_frr_render_daemons()      { :; }
     ovpn_frr_render_ospf()         { :; }
     ovpn_frr_enable()              { :; }
+    ovpn_frr_apply()               { :; }
     ovpn_reconcile_install_units() { :; }
     ovpn_link_render_core()        { :; }
     ovpn_firewall_open_port()      { :; }
