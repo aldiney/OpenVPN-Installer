@@ -16,6 +16,8 @@ setup() {
     load_lib ccd
     load_lib client_profile
     load_lib firewall
+    load_lib route_sync
+    load_lib mapsync
     load_lib hub_sync
     load_lib dualhub
     load_lib upgrade
@@ -71,6 +73,7 @@ setup() {
     ovpn_link_render_core()        { :; }
     ovpn_firewall_open_port()      { :; }
     ovpn_dualhub_link_forwarding() { :; }
+    ovpn_mapsync_publish()         { :; }
     run ovpn_action_enable_dynrouting <<< "s"
     [ "$status" -eq 0 ]
     [ "$(ovpn_config_get OVPN_DYNROUTING)" = "on" ]
@@ -117,6 +120,28 @@ setup() {
     run ovpn_action_set_domain_params <<< $'acme\n2\nspoke\n10.80.0.0\n255.255.252.0\nhubA.exemplo.com'
     [ "$status" -eq 0 ]
     [ "$(ovpn_config_get OVPN_CORE_HOST)" = "hubA.exemplo.com" ]
+}
+
+@test "ovpn_action_mapsync_authorize: autoriza a chave do spoke" {
+    export OVPN_MAP_BUNDLE="${BATS_TEST_TMPDIR}/map.tar.gz"
+    export OVPN_MAPSYNC_AUTHKEYS="${BATS_TEST_TMPDIR}/root/.ssh/authorized_keys"
+    run ovpn_action_mapsync_authorize <<< 'ssh-ed25519 AAAAKEYX spoke2'
+    [ "$status" -eq 0 ]
+    grep -q 'command=.*restrict ssh-ed25519 AAAAKEYX' "${OVPN_MAPSYNC_AUTHKEYS}"
+}
+
+@test "_ovpn_mapsync_publish_if_primary: publica só no primário em modo dinâmico" {
+    local published=0
+    ovpn_mapsync_publish() { published=1; }
+    # fora do modo dinâmico: não publica
+    OVPN_DYNROUTING=off OVPN_HUB_ROLE=core _ovpn_mapsync_publish_if_primary
+    [ "${published}" -eq 0 ]
+    # spoke em modo dinâmico: não publica
+    OVPN_DYNROUTING=on OVPN_HUB_ROLE=spoke _ovpn_mapsync_publish_if_primary
+    [ "${published}" -eq 0 ]
+    # primário em modo dinâmico: publica
+    OVPN_DYNROUTING=on OVPN_HUB_ROLE=core _ovpn_mapsync_publish_if_primary
+    [ "${published}" -eq 1 ]
 }
 
 @test "ovpn_action_readdress_space: detecta a rede atual, re-endereça e persiste" {

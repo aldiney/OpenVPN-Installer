@@ -69,8 +69,17 @@ _ovpn_create_client_interactive() {
     mode="${sel%%$'\t'*}"
     routes="${sel#*$'\t'}"
     ovpn_client_create "${name}" "${mode}" "${routes}"
+    _ovpn_mapsync_publish_if_primary
     if ovpn_ui_confirm "Gerar QR Code do perfil agora?"; then
         ovpn_client_qr "${name}"
+    fi
+}
+
+# Republica o mapa cliente->IP quando este hub é o PRIMÁRIO no modo dinâmico —
+# assim os spokes puxam a mudança automaticamente. No-op fora desse caso.
+_ovpn_mapsync_publish_if_primary() {
+    if [[ "${OVPN_DYNROUTING:-off}" == "on" && "${OVPN_HUB_ROLE:-core}" == "core" ]]; then
+        ovpn_mapsync_publish
     fi
 }
 
@@ -176,6 +185,7 @@ ovpn_action_revoke_client() {
     local name
     read -r -p "Nome do cliente a revogar: " name || return 1
     ovpn_client_revoke "${name}"
+    _ovpn_mapsync_publish_if_primary
 }
 
 # Desinstala o hub, perguntando se a PKI deve ser preservada.
@@ -358,9 +368,16 @@ ovpn_action_enable_dynrouting() {
         ovpn_link_render_core "${OVPN_LINK_PORT:-1195}"
         ovpn_firewall_open_port "${OVPN_LINK_PORT:-1195}" "${OVPN_PROTO:-udp}"
         systemctl enable --now "openvpn-server@${OVPN_LINK_NAME:-link}"
+        ovpn_mapsync_publish     # publica o mapa para os spokes puxarem
     else
         ovpn_link_render_spoke "${OVPN_CORE_HOST}" "${OVPN_LINK_PORT:-1195}" "link-${hub_id}"
         systemctl enable --now "openvpn-client@${OVPN_LINK_NAME:-link}"
+        # Sync automático do mapa: gera a chave do pull e o timer; mostra a
+        # pública para o operador autorizar no primário (menu 15 -> 13).
+        ovpn_mapsync_install_units
+        local _pub; _pub="$(ovpn_mapsync_keygen)"
+        ovpn_log_ok "Sync do mapa configurado. AUTORIZE esta chave no hub PRIMÁRIO (menu 15 -> 13):"
+        printf '%s\n' "${_pub}"
     fi
 
     # Sem isto o pacote inter-hub (entra pela ovpn-link, sai pelo tun do cliente)
@@ -425,6 +442,15 @@ ovpn_action_route_sync_import() {
     ovpn_route_sync_import "${in}"
 }
 
+# PRIMÁRIO: autoriza a chave pública de um spoke a PUXAR o mapa (sync automático).
+ovpn_action_mapsync_authorize() {
+    local pub
+    read -r -p "Cole a chave PÚBLICA do spoke (linha ssh-ed25519 ...): " pub || return 1
+    [[ -n "${pub}" ]] || { ovpn_log_warn "Chave vazia."; return 1; }
+    ovpn_mapsync_authorize "${pub}"
+    ovpn_log_ok "Spoke autorizado a puxar o mapa de clientes."
+}
+
 # Submenu do dual-hub ativo-ativo.
 ovpn_menu_dualhub() {
     local choice
@@ -441,7 +467,8 @@ ovpn_menu_dualhub() {
             "Migrar a rede para o espaço estável (re-endereçar /24->/22)" \
             "Definir parâmetros do domínio (papel/hub-id/domínio/espaço)" \
             "Exportar mapa de clientes (bundle)" \
-            "Importar mapa de clientes (bundle)"
+            "Importar mapa de clientes (bundle)" \
+            "Autorizar spoke a puxar o mapa (sync automático) — no primário"
         printf '0. Voltar\n'
         read -r -p "Escolha uma opção: " choice || return 0
         case "${choice}" in
@@ -457,6 +484,7 @@ ovpn_menu_dualhub() {
             10) ovpn_action_set_domain_params ;;
             11) ovpn_action_route_sync_export ;;
             12) ovpn_action_route_sync_import ;;
+            13) ovpn_action_mapsync_authorize ;;
             0) return 0 ;;
             *) ovpn_log_warn "Opção inválida." ;;
         esac
