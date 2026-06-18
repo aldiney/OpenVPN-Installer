@@ -123,6 +123,7 @@ setup() {
     run stub_calls ufw
     [[ "$output" == *"route allow in on tun0 out on tun1"* ]]
     [[ "$output" == *"route allow in on tun1 out on tun0"* ]]
+    [[ "$output" == *"allow in on tun1"* ]]   # INPUT do OSPF no enlace
     [[ "$output" == *"reload"* ]]
     [[ "$output" != *"MASQUERADE"* ]]
     [[ "$output" != *"masquerade"* ]]
@@ -137,6 +138,7 @@ setup() {
     [[ "$output" == *"FORWARD"* ]]
     [[ "$output" == *"tun0"* ]]
     [[ "$output" == *"ovpn-link"* ]]
+    [[ "$output" == *"INPUT -i ovpn-link -p 89"* ]]   # OSPF no INPUT do enlace
     [[ "$output" != *"MASQUERADE"* ]]
 }
 

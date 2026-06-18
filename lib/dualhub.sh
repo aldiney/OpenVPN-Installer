@@ -132,6 +132,11 @@ ovpn_dualhub_link_forwarding() {
         ufw)
             ufw route allow in on "${OVPN_TUN_IFACE}" out on "${link}"
             ufw route allow in on "${link}" out on "${OVPN_TUN_IFACE}"
+            # INPUT no enlace: os hellos do OSPF são destinados ao PRÓPRIO hub
+            # (não passam pelo FORWARD). Sem liberar o INPUT, o UFW (deny inbound)
+            # descarta o OSPF e a adjacência NUNCA forma. O enlace é cifrado/
+            # autenticado (tls-crypt) e só liga hubs, então liberá-lo é seguro.
+            ufw allow in on "${link}"
             ufw reload
             ;;
         *)
@@ -142,6 +147,8 @@ ovpn_dualhub_link_forwarding() {
             # reboot — ou prefira UFW, que persiste.)
             iptables -I FORWARD -i "${OVPN_TUN_IFACE}" -o "${link}" -j ACCEPT
             iptables -I FORWARD -i "${link}" -o "${OVPN_TUN_IFACE}" -j ACCEPT
+            # INPUT do OSPF (proto 89) no enlace — senão a adjacência não forma.
+            iptables -I INPUT -i "${link}" -p 89 -j ACCEPT
             ;;
     esac
     ovpn_log_ok "Encaminhamento inter-hub ativado entre ${OVPN_TUN_IFACE} e ${link} (sem NAT)."

@@ -368,6 +368,7 @@ ovpn_action_enable_dynrouting() {
     ovpn_dualhub_link_forwarding "${OVPN_LINK_IFACE:-ovpn-link}"
 
     ovpn_frr_enable
+    ovpn_frr_apply
     systemctl restart "openvpn-server@${OVPN_SERVER_NAME}"
     ovpn_log_ok "IP estável global ativado (papel ${OVPN_HUB_ROLE:-core})."
 }

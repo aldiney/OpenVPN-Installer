@@ -33,14 +33,25 @@ setup() {
     ovpn_frr_render_ospf 0.0.0.1 10.80.0.0 22 10.255.0.0/30 0.0.0.0 ovpn-link
     local c="${OVPN_FRR_OSPF_CONF}"
     grep -q 'ospf router-id 0.0.0.1' "${c}"
-    grep -q 'redistribute static route-map ONLY-CLIENT-32' "${c}"
-    ! grep -q 'redistribute kernel' "${c}"
+    # As /32 do reconciliador são proto static, mas o zebra as vê como KERNEL —
+    # confirmado em host real: redistribute kernel (não static) é o que pega.
+    grep -q 'redistribute kernel route-map ONLY-CLIENT-32' "${c}"
+    ! grep -q 'redistribute static' "${c}"
     grep -q 'ip prefix-list CLIENT32 seq 5 permit 10.80.0.0/22 ge 32 le 32' "${c}"
     grep -q 'route-map ONLY-CLIENT-32 permit 10' "${c}"
     grep -q 'network 10.255.0.0/30 area 0.0.0.0' "${c}"
-    grep -q 'no passive-interface ovpn-link' "${c}"
     grep -q 'ip ospf network point-to-multipoint' "${c}"
+    # Sintaxe NOVA p/ ativar a interface (a deprecada 'no passive-interface' não aplica).
+    grep -q 'no ip ospf passive' "${c}"
     ! grep -q 'redistribute connected' "${c}"
+}
+
+@test "ovpn_frr_apply: aplica o ospfd.conf no daemon (vtysh -f) e persiste" {
+    run ovpn_frr_apply
+    [ "$status" -eq 0 ]
+    run stub_calls vtysh
+    [[ "$output" == *"-f ${OVPN_FRR_OSPF_CONF}"* ]]
+    [[ "$output" == *"write memory"* ]]
 }
 
 @test "ovpn_frr_ensure: passa pelo gate de dependências (frr)" {

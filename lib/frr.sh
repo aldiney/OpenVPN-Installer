@@ -70,10 +70,9 @@ ovpn_frr_render_ospf() {
 ! Gerado pelo OpenVPN-Installer — IP estável global (ADR 0005).
 router ospf
  ospf router-id ${router_id}
- redistribute static route-map ONLY-CLIENT-32
+ redistribute kernel route-map ONLY-CLIENT-32
  network ${transport} area ${area}
  passive-interface default
- no passive-interface ${link}
 !
 ip prefix-list CLIENT32 seq 5 permit ${space}/${plen} ge 32 le 32
 !
@@ -83,6 +82,7 @@ route-map ONLY-CLIENT-32 deny 20
 !
 interface ${link}
  ip ospf network point-to-multipoint
+ no ip ospf passive
 !
 OSPF
 }
@@ -98,6 +98,15 @@ ovpn_frr_enable() {
 # Recarrega o FRR para aplicar mudanças de config (idempotente).
 ovpn_frr_reload() {
     systemctl reload frr 2>/dev/null || systemctl restart frr
+}
+
+# Aplica o ospfd.conf no daemon em execução (vtysh -f) e persiste (write memory).
+# Necessário porque, com o daemon já no ar, o FRR nem sempre recarrega o arquivo
+# por-daemon sozinho; o vtysh -f garante o load e o write memory normaliza o
+# arquivo (dono frr:frr) para sobreviver ao reboot.
+ovpn_frr_apply() {
+    vtysh -f "${OVPN_FRR_OSPF_CONF}"
+    vtysh -c "write memory" >/dev/null 2>&1 || true
 }
 
 # Mostra as rotas OSPF aprendidas (diagnóstico/HITL).
