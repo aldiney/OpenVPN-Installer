@@ -71,6 +71,7 @@ ovpn_frr_render_ospf() {
 router ospf
  ospf router-id ${router_id}
  redistribute kernel route-map ONLY-CLIENT-32
+ redistribute connected route-map ONLY-CLIENT-32
  network ${transport} area ${area}
  passive-interface default
 !

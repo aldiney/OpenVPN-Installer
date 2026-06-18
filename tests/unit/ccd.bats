@@ -33,6 +33,18 @@ setup() {
     [ "$output" = "10.80.0.255" ]
 }
 
+@test "ovpn_ccd_next_free_ip: no modo dinâmico, reserva o topo do espaço (hubs)" {
+    export OVPN_DYNROUTING=on
+    export OVPN_SUBNET_V4=10.80.0.0
+    export OVPN_NETMASK_V4=255.255.255.0
+    export OVPN_HUB_RESERVED=15
+    mkdir -p "$(ovpn_ccd_dir)"
+    local f="$(ovpn_ccd_dir)/seed" i
+    for i in $(seq 2 239); do printf 'ifconfig-push 10.80.0.%s 255.255.255.0\n' "$i" >> "$f"; done
+    run ovpn_ccd_next_free_ip
+    [ "$status" -ne 0 ]   # .240+ é reservado p/ os IPs de identidade dos hubs
+}
+
 @test "ovpn_ccd_next_free_ip: respeita o limite da máscara (/29: só .2-.6)" {
     export OVPN_SUBNET_V4=10.80.0.0
     export OVPN_NETMASK_V4=255.255.255.248

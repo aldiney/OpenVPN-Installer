@@ -36,6 +36,11 @@ ovpn_ccd_next_free_ip() {
     bcast=$(( network | (~mask_int & 0xFFFFFFFF) ))
     first=$(( network + 2 ))
     last=$(( bcast - 1 ))
+    # No modo dinâmico, o topo do espaço é reservado p/ os IPs de identidade dos
+    # hubs (ver lib/hub_identity.sh) — o alocador de clientes para antes dele.
+    if [[ "${OVPN_DYNROUTING:-off}" == "on" ]]; then
+        last=$(( last - ${OVPN_HUB_RESERVED:-15} ))
+    fi
     for (( i = first; i <= last; i++ )); do
         ip="$(ovpn_int_to_ip "${i}")"
         case "${used}" in
