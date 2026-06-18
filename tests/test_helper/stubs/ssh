@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# Stub do `ssh`: registra os argumentos e devolve STUB_SSH_OUTPUT no stdout
+# (para simular a saída do forced-command que serve o bundle do mapa).
+printf '%s\n' "$*" >> "${STUB_CALLS_DIR:?STUB_CALLS_DIR não definido}/ssh"
+printf '%s' "${STUB_SSH_OUTPUT:-}"
+exit "${STUB_SSH_EXIT:-0}"

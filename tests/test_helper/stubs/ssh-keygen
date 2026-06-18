@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# Stub do `ssh-keygen`: registra os argumentos e cria arquivos de chave de
+# mentira no caminho passado em -f (e o .pub), sem gerar cripto real.
+printf '%s\n' "$*" >> "${STUB_CALLS_DIR:?STUB_CALLS_DIR não definido}/ssh-keygen"
+keyfile=""
+while [[ $# -gt 0 ]]; do
+    if [[ "$1" == "-f" ]]; then keyfile="$2"; shift 2; continue; fi
+    shift
+done
+if [[ -n "${keyfile}" ]]; then
+    mkdir -p "$(dirname "${keyfile}")"
+    printf 'FAKE-PRIV\n' > "${keyfile}"
+    printf 'ssh-ed25519 AAAAFAKEKEY openvpn-installer-mapsync\n' > "${keyfile}.pub"
+fi
+exit 0
