@@ -17,9 +17,13 @@
 : "${OVPN_CLIENT_CONF_DIR:=${OVPN_ETC}/client}"
 : "${OVPN_PROTO:=udp}"
 : "${OVPN_DATA_CIPHERS:=AES-256-GCM:AES-128-GCM}"
+: "${OVPN_SUBNET_V4:=10.8.0.0}"
+: "${OVPN_NETMASK_V4:=255.255.255.0}"
 
 ovpn_link_conf_path_core()  { printf '%s' "${OVPN_SERVER_DIR}/${OVPN_LINK_NAME}.conf"; }
 ovpn_link_conf_path_spoke() { printf '%s' "${OVPN_CLIENT_CONF_DIR}/${OVPN_LINK_NAME}.conf"; }
+# ccd dedicado do enlace (separado do ccd dos clientes comuns).
+ovpn_link_ccd_dir()         { printf '%s' "${OVPN_SERVER_DIR}/ccd-link"; }
 
 # Renderiza o link-server do hub core: emite o cert dedicado (serverAuth) e
 # escreve a config da 2ª instância OpenVPN (dev ovpn-link, sub-rede de
@@ -35,18 +39,33 @@ ovpn_link_render_core() {
         printf 'port %s\n' "${port}"
         printf 'topology subnet\n'
         printf 'server %s %s\n' "${OVPN_TRANSPORT_NET_V4}" "${OVPN_TRANSPORT_MASK_V4}"
+        # Entrega o espaço de clientes ao spoke. O OpenVPN-server só roteia a um
+        # cliente o que tiver iroute; sem isto, os /32 atrás do spoke (identidade
+        # do outro hub, clientes em roam) chegam ao tun do core e são descartados.
+        # O kernel já filtra (só manda à ovpn-link os /32 que o OSPF aprendeu lá),
+        # então iroutar o /24 inteiro ao único spoke é seguro. O ccd DEFAULT vale
+        # p/ o spoke seja qual for o CN dele. (Topologia de 1 core + 1 spoke.)
+        printf 'client-config-dir %s\n' "$(ovpn_link_ccd_dir)"
         printf 'ca %s\n' "$(ovpn_pki_ca_cert)"
         printf 'cert %s/issued/link-core.crt\n' "${OVPN_PKI_DIR}"
         printf 'key %s/private/link-core.key\n' "${OVPN_PKI_DIR}"
         printf 'dh none\n'
         printf 'tls-crypt %s\n' "$(ovpn_pki_tls_crypt)"
         printf 'data-ciphers %s\n' "${OVPN_DATA_CIPHERS}"
-        printf 'client-to-client\n'
+        # SEM client-to-client de propósito: com o iroute do /24, ele faria o
+        # OpenVPN tratar TODO o espaço (inclusive a identidade e os clientes
+        # LOCAIS do core) como "atrás do spoke", e os pacotes de entrada para
+        # esses endereços não seriam entregues localmente. Sem ele, a entrada
+        # vai ao kernel (que roteia pelo OSPF/connected) e o iroute serve só
+        # para a saída core->spoke. (Enlace de 1 core + 1 spoke.)
         printf 'keepalive 10 60\n'
         printf 'persist-key\n'
         printf 'persist-tun\n'
         printf 'verb 3\n'
     } > "$(ovpn_link_conf_path_core)"
+    mkdir -p "$(ovpn_link_ccd_dir)"
+    printf 'iroute %s %s\n' "${OVPN_SUBNET_V4}" "${OVPN_NETMASK_V4}" \
+        > "$(ovpn_link_ccd_dir)/DEFAULT"
 }
 
 # Renderiza o link-client do hub spoke: emite o cert dedicado (clientAuth, nome
