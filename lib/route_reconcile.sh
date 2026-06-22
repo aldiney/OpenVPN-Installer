@@ -50,11 +50,16 @@ ovpn_reconcile_apply() {
 
     existing="$(ip route show proto static dev "${tun}" 2>/dev/null | awk '{print $1}')"
     for e in ${existing}; do
-        [[ "${e}" == */32 ]] || continue
+        # O `ip route show` do IPv4 mostra rota de host SEM o /32 (ex.: "10.80.0.9").
+        # Tirar um /32 eventual e só gerenciar IPv4 puro (host) — senão a poda nunca
+        # casava e os /32 de clientes que saíram (roam) ficavam órfãos p/ sempre,
+        # fazendo o hub antigo blackhole o retorno (a /32 local, distância 0, vence
+        # a aprendida por OSPF, distância 110).
         ip_only="${e%/32}"
+        [[ "${ip_only}" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]] || continue
         case "${connected}" in
             *" ${ip_only} "*) ;;   # ainda conectado — mantém
-            *) ip route del "${e}" 2>/dev/null || true ;;
+            *) ip route del "${ip_only}/32" dev "${tun}" 2>/dev/null || true ;;
         esac
     done
 }

@@ -29,19 +29,33 @@ EOF
 @test "ovpn_reconcile_apply: instala /32 dos conectados e remove os órfãos" {
     local s="${BATS_TEST_TMPDIR}/status"
     printf 'CLIENT_LIST,alice,1.2.3.4:5,10.80.0.5,,1,1\n' > "${s}"
-    export STUB_IP_ROUTES="10.80.0.9/32 dev tun0 proto static metric 50"
+    # O `ip route show` do IPv4 mostra rota de host SEM o sufixo /32 (formato real).
+    export STUB_IP_ROUTES="10.80.0.9 scope link metric 50"
     export OVPN_TUN_IFACE=tun0
     run ovpn_reconcile_apply "${s}"
     [ "$status" -eq 0 ]
     run stub_calls ip
     [[ "$output" == *"route replace 10.80.0.5/32 dev tun0 proto static metric 50"* ]]
-    [[ "$output" == *"route del 10.80.0.9/32"* ]]
+    [[ "$output" == *"route del 10.80.0.9/32 dev tun0"* ]]
+}
+
+@test "ovpn_reconcile_apply: remove o órfão mesmo sem clientes conectados (roam: hub esvaziou)" {
+    # Status VÁLIDO (tem HEADER) porém com zero clientes — o cliente saiu p/ outro
+    # hub. O /32 dele tem de ser podado, senão o hub antigo faz blackhole do retorno.
+    local s="${BATS_TEST_TMPDIR}/status"
+    printf 'HEADER,CLIENT_LIST,Common Name,Real Address,Virtual Address\n' > "${s}"
+    export STUB_IP_ROUTES="10.80.0.2 scope link metric 50"
+    export OVPN_TUN_IFACE=tun0
+    run ovpn_reconcile_apply "${s}"
+    [ "$status" -eq 0 ]
+    run stub_calls ip
+    [[ "$output" == *"route del 10.80.0.2/32 dev tun0"* ]]
 }
 
 @test "ovpn_reconcile_apply: idempotente (não remove cliente ainda conectado)" {
     local s="${BATS_TEST_TMPDIR}/status"
     printf 'CLIENT_LIST,alice,1.2.3.4:5,10.80.0.5,,1,1\n' > "${s}"
-    export STUB_IP_ROUTES="10.80.0.5/32 dev tun0 proto static metric 50"
+    export STUB_IP_ROUTES="10.80.0.5 scope link metric 50"
     export OVPN_TUN_IFACE=tun0
     run ovpn_reconcile_apply "${s}"
     [ "$status" -eq 0 ]
@@ -50,7 +64,7 @@ EOF
 }
 
 @test "ovpn_reconcile_apply: status ausente NÃO apaga rotas (sem wipe)" {
-    export STUB_IP_ROUTES="10.80.0.5/32 dev tun0 proto static metric 50"
+    export STUB_IP_ROUTES="10.80.0.5 scope link metric 50"
     export OVPN_TUN_IFACE=tun0
     run ovpn_reconcile_apply "${BATS_TEST_TMPDIR}/inexistente"
     [ "$status" -eq 0 ]
